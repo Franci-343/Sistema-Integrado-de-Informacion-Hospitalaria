@@ -1,0 +1,32 @@
+# Manifiesto de archivos
+
+- `AGENTS.md`
+- `FILE_MANIFEST.md`
+- `README.md`
+- `SIIH_CONTEXT_MASTER.md`
+- `backend/CONTEXT.md`
+- `docs/ai-context/00_indice_y_modo_de_uso.md`
+- `docs/ai-context/01_contexto_problema_y_objetivos.md`
+- `docs/ai-context/02_alcance_modulos_y_limites.md`
+- `docs/ai-context/03_stakeholders_roles_y_permisos.md`
+- `docs/ai-context/04_requisitos_funcionales.md`
+- `docs/ai-context/05_requisitos_no_funcionales.md`
+- `docs/ai-context/06_reglas_de_negocio.md`
+- `docs/ai-context/07_historias_de_usuario_y_aceptacion.md`
+- `docs/ai-context/08_casos_de_uso_prioritarios.md`
+- `docs/ai-context/09_modelo_de_dominio_y_datos.md`
+- `docs/ai-context/10_procesos_as_is_to_be.md`
+- `docs/ai-context/11_arquitectura_y_tecnologias.md`
+- `docs/ai-context/12_api_integraciones_y_contratos.md`
+- `docs/ai-context/13_seguridad_privacidad_y_auditoria.md`
+- `docs/ai-context/14_mvp_backlog_y_roadmap.md`
+- `docs/ai-context/15_estructura_monorepo.md`
+- `docs/ai-context/16_pruebas_calidad_y_definicion_de_hecho.md`
+- `docs/ai-context/17_despliegue_respaldo_y_continuidad.md`
+- `docs/ai-context/18_levantamiento_y_validacion.md`
+- `docs/ai-context/19_instrumentos_de_levantamiento.md`
+- `docs/ai-context/20_riesgos_supuestos_y_decisiones_pendientes.md`
+- `docs/ai-context/21_matriz_de_trazabilidad.md`
+- `docs/ai-context/22_glosario.md`
+- `docs/ai-context/23_fuentes_y_control_de_cambios.md`
+- `frontend/CONTEXT.md`
