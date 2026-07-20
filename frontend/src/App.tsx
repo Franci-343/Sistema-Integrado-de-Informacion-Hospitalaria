@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { api, type Appointment as ApiAppointment, type AppointmentStatus, type ClinicalHistory, type Consultation, type Patient as ApiPatient, type PatientCreateRequest, type PatientUpdateRequest, type Professional, type Specialty } from './api'
+import { OperationalView } from './OperationalView'
 import './App.css'
 
 type ViewKey =
@@ -59,16 +60,6 @@ const managementNavigation: { label: string; key: ViewKey; icon: string }[] = [
   { label: 'Reportes', key: 'reportes', icon: '▦' },
   { label: 'Administración', key: 'administracion', icon: '⚙' },
 ]
-
-const moduleInfo: Record<Exclude<ViewKey, 'inicio' | 'pacientes' | 'agenda'>, { title: string; description: string; action: string; icon: string }> = {
-  historia: { title: 'Historia clínica', description: 'Consultas, antecedentes y evolución clínica autorizada.', action: 'Abrir historia', icon: '▤' },
-  laboratorio: { title: 'Laboratorio', description: 'Órdenes, muestras y resultados pendientes de validación.', action: 'Nueva orden', icon: '⌁' },
-  farmacia: { title: 'Farmacia', description: 'Recetas vigentes y dispensaciones del día.', action: 'Dispensar receta', icon: '✣' },
-  inventario: { title: 'Inventario', description: 'Existencias, lotes y alertas de abastecimiento.', action: 'Registrar movimiento', icon: '▥' },
-  facturacion: { title: 'Facturación', description: 'Servicios registrados, pagos y comprobantes.', action: 'Nueva factura', icon: '▧' },
-  reportes: { title: 'Reportes', description: 'Indicadores operativos para seguimiento institucional.', action: 'Generar reporte', icon: '▦' },
-  administracion: { title: 'Administración', description: 'Usuarios, roles y trazabilidad de operaciones sensibles.', action: 'Gestionar usuarios', icon: '⚙' },
-}
 
 function Icon({ symbol }: { symbol: string }) {
   return <span className="icon" aria-hidden="true">{symbol}</span>
@@ -303,7 +294,7 @@ function App() {
           {activeView === 'pacientes' && <PatientsView patients={patients} search={search} page={patientPage} totalPages={patientPages} totalElements={patientTotal} loading={loadingPatients} onSearchChange={(value) => { setSearch(value); setPatientPage(0) }} onPageChange={setPatientPage} onNewPatient={() => setShowPatientModal(true)} onEditPatient={editPatient} onNotify={notify} />}
           {activeView === 'agenda' && <AgendaView appointments={appointments} selectedDate={agendaDate} loading={loadingAppointments} onDateChange={(offset) => setAgendaDate((current) => addDays(current, offset))} onMarkArrival={markArrival} onCancel={async (id, reason) => { try { await api.cancelAppointment(id, reason); notify('Cita cancelada correctamente'); await loadAppointments(agendaFilters) } catch (failure) { notify(getErrorMessage(failure)) } }} onNewAppointment={() => setShowAppointmentModal(true)} onNotify={notify} />}
           {activeView === 'historia' && <ClinicalHistoryView patients={patients} professionals={professionals} appointments={appointments} selectedPatientId={historyPatientId} onPatientChange={setHistoryPatientId} onNotify={notify} />}
-          {activeView !== 'inicio' && activeView !== 'pacientes' && activeView !== 'agenda' && activeView !== 'historia' && <GenericModuleView module={moduleInfo[activeView]} onAction={() => notify('Este módulo todavía no tiene endpoints implementados')} />}
+          {activeView !== 'inicio' && activeView !== 'pacientes' && activeView !== 'agenda' && activeView !== 'historia' && <OperationalView module={activeView} onNotify={notify} />}
         </div>
       </main>
 
@@ -484,10 +475,6 @@ function ConsultationCloseModal({ consultation, onClose, onSave }: { consultatio
   const [saving, setSaving] = useState(false)
   const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSaving(true); try { await onSave(consultation.id, form) } finally { setSaving(false) } }
   return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}><form className="modal" role="dialog" aria-modal="true" aria-labelledby="close-consultation-title" onMouseDown={(event) => event.stopPropagation()} onSubmit={(event) => void submit(event)}><div className="modal-header"><div><span className="eyebrow">{consultation.consultationCode}</span><h2 id="close-consultation-title">Cerrar consulta</h2></div><button type="button" className="close-button" aria-label="Cerrar" onClick={onClose}>×</button></div><div className="form-grid"><label className="form-span-two">Motivo de consulta<input required value={form.chiefComplaint} onChange={(event) => setForm((current) => ({ ...current, chiefComplaint: event.target.value }))} /></label><label className="form-span-two">Evolución<textarea value={form.evolution} onChange={(event) => setForm((current) => ({ ...current, evolution: event.target.value }))} /></label><label className="form-span-two">Diagnóstico<input required value={form.diagnosisSummary} onChange={(event) => setForm((current) => ({ ...current, diagnosisSummary: event.target.value }))} /></label><label className="form-span-two">Plan de tratamiento<textarea required value={form.treatmentPlan} onChange={(event) => setForm((current) => ({ ...current, treatmentPlan: event.target.value }))} /></label><label className="form-span-two">Recomendaciones<textarea value={form.recommendations} onChange={(event) => setForm((current) => ({ ...current, recommendations: event.target.value }))} /></label></div><div className="modal-footer"><button type="button" className="button button-secondary" onClick={onClose}>Cancelar</button><button type="submit" className="button button-primary" disabled={saving}>{saving ? 'Cerrando...' : 'Cerrar consulta'}</button></div></form></div>
-}
-
-function GenericModuleView({ module, onAction }: { module: { title: string; description: string; action: string; icon: string }; onAction: () => void }) {
-  return <><section className="page-heading compact-heading"><div><span className="eyebrow">Módulo operativo</span><h1>{module.title}</h1><p>{module.description}</p></div><button type="button" className="button button-primary" onClick={onAction}><Icon symbol="+" /> {module.action}</button></section><section className="module-empty panel"><div className="module-empty-icon"><Icon symbol={module.icon} /></div><span className="eyebrow">Integración pendiente</span><h2>El módulo está preparado</h2><p>Esta vista queda reservada para los endpoints de {module.title.toLowerCase()}.</p><button type="button" className="button button-secondary" onClick={onAction}>Ver estado</button></section></>
 }
 
 type AppointmentForm = { patientId: string; specialtyId: string; professionalId: string; date: string; time: string; reason: string }

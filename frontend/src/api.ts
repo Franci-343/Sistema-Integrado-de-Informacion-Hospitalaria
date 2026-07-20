@@ -158,6 +158,45 @@ export type ConsultationCloseRequest = {
   recommendations?: string
 }
 
+export type LaboratoryOverview = {
+  summary: { totalOrders: number; pendingOrders: number; completedOrders: number }
+  catalog: Array<{ id: string; code: string; name: string; sampleType: string | null; unit: string | null; referenceRange: string | null; price: number; active: boolean }>
+  orders: Array<{ id: string; orderCode: string; patientCode: string; patientName: string; consultationCode: string; status: string; clinicalNotes: string | null; requestedAt: string; testCount: number }>
+}
+
+export type PharmacyOverview = {
+  summary: { medicationCount: number; activeMedicationCount: number; lowStockCount: number }
+  medications: Array<{ id: string; code: string; genericName: string; commercialName: string | null; presentation: string; concentration: string | null; route: string | null; minimumStock: number; availableQuantity: number; batchCount: number; nextExpiry: string | null; active: boolean }>
+  prescriptions: Array<{ id: string; prescriptionCode: string; patientCode: string; patientName: string; status: string; issuedOn: string; validUntil: string | null }>
+}
+
+export type InventoryOverview = {
+  summary: { stockLines: number; totalUnits: number; lowStockLines: number; expiringSoonLines: number }
+  locations: Array<{ id: string; code: string; name: string; locationType: string; active: boolean }>
+  stock: Array<{ id: string; medicationCode: string; genericName: string; batchCode: string; expiresOn: string; locationCode: string; locationName: string; availableQuantity: number; reservedQuantity: number; lowStock: boolean }>
+  movements: Array<{ id: string; movementCode: string; genericName: string; movementType: string; quantity: number; reason: string | null; occurredAt: string }>
+}
+
+export type BillingOverview = {
+  summary: { chargeCount: number; pendingChargeCount: number; pendingAmount: number }
+  invoices: Array<{ id: string; invoiceCode: string; patientCode: string; patientName: string; status: string; currency: string; subtotal: number; discount: number; tax: number; total: number; issuedAt: string | null }>
+  charges: Array<{ id: string; chargeCode: string; patientCode: string; description: string | null; quantity: number; unitPrice: number; subtotal: number; status: string; registeredAt: string }>
+  payments: Array<{ id: string; paymentCode: string; invoiceCode: string; amount: number; paymentMethod: string; status: string; paidAt: string }>
+}
+
+export type ReportsOverview = {
+  summary: { activePatients: number; activeAppointments: number; consultations: number; labOrders: number; invoices: number; inventoryUnits: number }
+  appointmentsByStatus: Array<{ status: string; count: number }>
+  appointmentsBySpecialty: Array<{ specialty: string; count: number }>
+  recentActivity: Array<{ type: string; code: string; status: string; occurredAt: string }>
+}
+
+export type AdministrationOverview = {
+  summary: { userCount: number; activeUserCount: number; lockedUserCount: number; auditEventCount: number }
+  users: Array<{ id: string; username: string; displayName: string; email: string | null; status: string; lastLoginAt: string | null; roles: string }>
+  audit: Array<{ id: string; action: string; entityType: string; success: boolean; eventAt: string; username: string | null }>
+}
+
 export class ApiError extends Error {
   readonly status: number
   readonly code?: string
@@ -300,6 +339,30 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     })
+  },
+
+  getLaboratoryOverview() {
+    return request<LaboratoryOverview>('/laboratory/overview')
+  },
+
+  getPharmacyOverview() {
+    return request<PharmacyOverview>('/pharmacy/overview')
+  },
+
+  getInventoryOverview() {
+    return request<InventoryOverview>('/inventory/overview')
+  },
+
+  getBillingOverview() {
+    return request<BillingOverview>('/billing/overview')
+  },
+
+  getReportsOverview() {
+    return request<ReportsOverview>('/reports/overview')
+  },
+
+  getAdministrationOverview() {
+    return request<AdministrationOverview>('/administration/overview')
   },
 }
 
