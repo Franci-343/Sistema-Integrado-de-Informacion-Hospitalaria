@@ -1,9 +1,11 @@
-import { Activity as ActivityIcon, AlertTriangle, Bell, CalendarDays, ChartNoAxesCombined, ChevronDown, ClipboardList, Download, FlaskConical, HeartPulse, Hospital, House, Info, LogOut, PackageSearch, Pill, Plus, ReceiptText, Search, Settings, Stethoscope, Users, type LucideIcon } from 'lucide-react'
+import { Activity as ActivityIcon, AlertTriangle, Bell, CalendarDays, ChartNoAxesCombined, ChevronDown, ClipboardList, Download, FlaskConical, HeartPulse, Hospital, House, Info, LogOut, PackageSearch, Pill, Plus, ReceiptText, RefreshCw, Search, Settings, Stethoscope, Users, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, type Appointment as ApiAppointment, type AppointmentStatus, type BillingOverview, type ClinicalHistory, type Consultation, type InventoryOverview, type LaboratoryOverview, type Patient as ApiPatient, type PatientCreateRequest, type PatientUpdateRequest, type PharmacyOverview, type Professional, type ReportsOverview, type Specialty } from './api'
+import type { Notification as ApiNotification } from './api'
 import { useAuth } from './auth/auth-context'
 import { isViewKey, PERMISSIONS, viewPermissions, type ViewKey } from './auth/permissions'
+import { ClinicalOperationsView } from './ClinicalOperationsView'
 import { OperationalView, type OperationalModule } from './OperationalView'
 import './App.css'
 
@@ -102,6 +104,8 @@ function Workspace() {
   const [dashboardData, setDashboardData] = useState<DashboardData>(emptyDashboardData)
   const [loadingDashboard, setLoadingDashboard] = useState(true)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [notifications, setNotifications] = useState<ApiNotification[]>([])
   const [backendStatus, setBackendStatus] = useState<'loading' | 'online' | 'offline'>('loading')
 
   const canReadPatients = hasPermission(PERMISSIONS.PATIENT_READ)
@@ -109,6 +113,8 @@ function Workspace() {
   const canWritePatients = hasPermission(PERMISSIONS.PATIENT_WRITE)
   const canWriteAppointments = hasPermission(PERMISSIONS.APPOINTMENT_WRITE)
   const canWriteClinical = hasPermission(PERMISSIONS.CLINICAL_WRITE)
+  const canWriteTriage = hasPermission(PERMISSIONS.TRIAGE_WRITE)
+  const canWriteHospitalization = hasPermission(PERMISSIONS.HOSPITALIZATION_WRITE)
   const visibleNavigation = useMemo(() => navigation.filter((item) => hasPermission(viewPermissions[item.key])), [hasPermission])
   const visibleManagementNavigation = useMemo(() => managementNavigation.filter((item) => hasPermission(viewPermissions[item.key])), [hasPermission])
 
@@ -128,6 +134,19 @@ function Workspace() {
     setToast(message)
     window.setTimeout(() => setToast(''), 2800)
   }, [])
+
+  const loadNotifications = useCallback(async () => {
+    try { setNotifications(await api.getNotifications()) } catch { setNotifications([]) }
+  }, [])
+
+  useEffect(() => { void loadNotifications() }, [loadNotifications])
+
+  const readNotification = async (id: string) => {
+    try {
+      const updated = await api.markNotificationRead(id)
+      setNotifications((current) => current.map((item) => item.id === id ? updated : item))
+    } catch (reason) { notify(getErrorMessage(reason)) }
+  }
 
   const loadPatients = useCallback(async (term: string, page: number) => {
     if (!canReadPatients) {
@@ -359,12 +378,15 @@ function Workspace() {
           <div className="breadcrumb"><span>SIIH</span><span>/</span><strong>{currentTitle}</strong></div>
           <div className="topbar-actions">
             <div className="topbar-date"><span className="date-dot"></span>{todayLabel}</div>
-            <button className="icon-button notification-button" type="button" aria-label="Ver notificaciones" title="Notificaciones" onClick={() => notify('No tienes notificaciones nuevas')}><Icon symbol={Bell} /></button>
+            <div className="notification-wrap">
+              <button className="icon-button notification-button" type="button" aria-label="Ver notificaciones" title="Notificaciones" aria-expanded={showNotifications} onClick={() => setShowNotifications((current) => !current)}><Icon symbol={Bell} />{notifications.some((item) => !item.readAt) && <span className="notification-dot" />}</button>
+              {showNotifications && <div className="notification-dropdown"><div className="notification-heading"><strong>Notificaciones</strong><button type="button" onClick={() => void loadNotifications()}><RefreshCw aria-hidden="true" /></button></div><div className="notification-list">{notifications.length === 0 ? <span className="notification-empty">No tienes notificaciones.</span> : notifications.slice(0, 8).map((item) => <button type="button" className={item.readAt ? 'notification-item notification-read' : 'notification-item'} key={item.id} onClick={() => void readNotification(item.id)}><i /><span><strong>{item.message}</strong><small>{formatShortDateTime(item.createdAt)}</small></span></button>)}</div></div>}
+            </div>
             <div className="user-menu-wrap">
               <button className="user-menu" type="button" aria-expanded={showUserMenu} onClick={() => setShowUserMenu((current) => !current)}>
                 <div className="avatar avatar-navy">{initials(user.displayName)}</div><div className="user-copy"><strong>{user.displayName}</strong><span>{user.roleLabel}</span></div><ChevronDown className="chevron" aria-hidden="true" />
               </button>
-              {showUserMenu && <div className="user-dropdown"><div><strong>{user.department}</strong><span>@{user.username}</span></div><button type="button" onClick={() => { logout(); navigate('/') }}><LogOut aria-hidden="true" /> Cerrar sesión</button></div>}
+              {showUserMenu && <div className="user-dropdown"><div><strong>{user.department}</strong><span>@{user.username}</span></div><button type="button" onClick={() => { void logout().finally(() => navigate('/')) }}><LogOut aria-hidden="true" /> Cerrar sesión</button></div>}
             </div>
           </div>
         </header>
@@ -375,8 +397,8 @@ function Workspace() {
           {activeView === 'pacientes' && <PatientsView patients={patients} search={search} page={patientPage} totalPages={patientPages} totalElements={patientTotal} loading={loadingPatients} canWrite={canWritePatients} onSearchChange={(value) => { setSearch(value); setPatientPage(0) }} onPageChange={setPatientPage} onNewPatient={() => setShowPatientModal(true)} onEditPatient={editPatient} />}
           {activeView === 'agenda' && <AgendaView appointments={appointments} selectedDate={agendaDate} loading={loadingAppointments} canWrite={canWriteAppointments} onDateChange={(offset) => setAgendaDate((current) => addDays(current, offset))} onMarkArrival={markArrival} onCancel={async (id, reason) => { try { await api.cancelAppointment(id, reason); notify('Cita cancelada correctamente'); await loadAppointments(agendaFilters) } catch (failure) { notify(getErrorMessage(failure)) } }} onNewAppointment={() => setShowAppointmentModal(true)} />}
           {activeView === 'historia' && <ClinicalHistoryView patients={patients} professionals={professionals} appointments={appointments} selectedPatientId={historyPatientId} canWrite={canWriteClinical} onPatientChange={setHistoryPatientId} onNotify={notify} />}
-          {activeView === 'triaje' && <PendingIntegrationView module="Triaje" icon={ActivityIcon} description="El registro de prioridad y signos vitales requiere los endpoints de triaje definidos en el contrato del SIIH." />}
-          {activeView === 'hospitalizacion' && <PendingIntegrationView module="Hospitalización" icon={Hospital} description="Ingresos, camas, seguimiento y altas están documentados, pero todavía no cuentan con API en el backend actual." />}
+          {activeView === 'triaje' && <ClinicalOperationsView module="triaje" canWrite={canWriteTriage} onNotify={notify} />}
+          {activeView === 'hospitalizacion' && <ClinicalOperationsView module="hospitalizacion" canWrite={canWriteHospitalization} onNotify={notify} />}
           {isOperationalModule(activeView) && <OperationalView module={activeView} onNotify={notify} canExport={hasPermission(PERMISSIONS.REPORT_EXPORT)} />}
         </div>
       </main>
@@ -474,13 +496,6 @@ function Activity({ icon, tone, title, description, time }: { icon: string; tone
 function Alert({ tone, title, description, action, onAction }: { tone: string; title: string; description: string; action: string; onAction: () => void }) {
   const AlertIcon = tone === 'critical' || tone === 'warning' ? AlertTriangle : Info
   return <div className="alert-item"><div className={`alert-icon alert-${tone}`}><AlertIcon aria-hidden="true" /></div><div className="alert-copy"><strong>{title}</strong><span>{description}</span><button type="button" className="text-button" onClick={onAction}>{action} <span>→</span></button></div></div>
-}
-
-function PendingIntegrationView({ module, icon: ModuleIcon, description }: { module: string; icon: LucideIcon; description: string }) {
-  return <>
-    <section className="page-heading compact-heading"><div><span className="eyebrow">Continuidad asistencial</span><h1>{module}</h1><p>{description}</p></div><span className="integration-badge">API pendiente</span></section>
-    <section className="panel integration-state"><div className="integration-state-icon"><ModuleIcon aria-hidden="true" /></div><div><h2>Interfaz preparada para integración</h2><p>La navegación y los permisos ya contemplan este módulo. La captura permanecerá deshabilitada hasta contar con persistencia, auditoría y validaciones del backend.</p></div><div className="integration-checks"><span><i className="ready" /> Requisito documentado</span><span><i className="ready" /> Acceso por rol</span><span><i /> Endpoint operativo</span></div></section>
-  </>
 }
 
 function AppointmentTableRow({ appointment, canWrite, onMarkArrival }: { appointment: Appointment; canWrite: boolean; onMarkArrival: (id: string) => Promise<void> }) {

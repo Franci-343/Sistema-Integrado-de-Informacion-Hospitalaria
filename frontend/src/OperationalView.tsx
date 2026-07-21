@@ -1,6 +1,7 @@
 import { Download, RefreshCw, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { api, type AdministrationOverview, type BillingOverview, type InventoryOverview, type LaboratoryOverview, type PharmacyOverview, type ReportsOverview } from './api'
+import { OperationalActions } from './OperationalActions'
 
 export type OperationalModule = 'laboratorio' | 'farmacia' | 'inventario' | 'facturacion' | 'reportes' | 'administracion'
 
@@ -64,6 +65,7 @@ export function OperationalView({ module, onNotify, canExport = false }: { modul
       <div className="heading-actions">{canExport && <button type="button" className="button button-secondary" onClick={exportData} disabled={!data}><Download aria-hidden="true" /> Exportar CSV</button>}<button type="button" className="button button-primary" onClick={() => void refresh()} disabled={loading}><RefreshCw aria-hidden="true" /> {loading ? 'Actualizando...' : 'Actualizar'}</button></div>
     </section>
     {data && <div className="operation-toolbar"><label className="search-field"><Search aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Buscar en ${title.title.toLowerCase()}`} aria-label={`Buscar en ${title.title.toLowerCase()}`} />{query && <button type="button" aria-label="Limpiar búsqueda" onClick={() => setQuery('')}>×</button>}</label><span>{loading ? 'Sincronizando...' : 'Datos sincronizados con la API'}</span></div>}
+    <OperationalActions module={module} onChanged={load} onNotify={onNotify} />
     {loading && !data ? <section className="panel operation-loading">Consultando el backend...</section> : error ? <section className="panel operation-error"><strong>No se pudo cargar {title.title.toLowerCase()}</strong><span>{error}</span><button type="button" className="button button-secondary" onClick={() => void load()}>Reintentar</button></section> : data && <OperationContent module={module} data={data} query={query} />}
   </>
 }

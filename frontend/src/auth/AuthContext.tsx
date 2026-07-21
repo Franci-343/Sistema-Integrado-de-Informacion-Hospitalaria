@@ -1,65 +1,84 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { api, ApiError, type AuthResponse } from '../api'
 import { AuthContext, type AuthContextValue, type AuthUser, type LoginResult } from './auth-context'
-import { demoAccounts, demoPassword } from './demoAccounts'
-import { permissionsForRole, roleLabels } from './permissions'
-
-const LOCAL_SESSION_KEY = 'siih.auth.local'
-const TAB_SESSION_KEY = 'siih.auth.tab'
-type StoredSession = {
-  user: AuthUser
-  expiresAt: number
-  persistent: boolean
-}
+import type { Permission, UserRole } from './permissions'
+import {
+  clearStoredSession,
+  dispatchSessionEvent,
+  readStoredSession,
+  SESSION_EXPIRED_EVENT,
+  SESSION_UPDATED_EVENT,
+  type StoredSession,
+  writeStoredSession,
+} from './session'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<StoredSession | null>(() => readSession())
+  const [session, setSession] = useState<StoredSession | null>(() => readStoredSession())
+  const activeRefreshToken = session?.refreshToken
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(LOCAL_SESSION_KEY)
-    sessionStorage.removeItem(TAB_SESSION_KEY)
+  const logout = useCallback(async () => {
+    const current = readStoredSession()
+    try {
+      if (current) await api.logout(current.refreshToken)
+    } catch {
+      // Local revocation still applies if the API is temporarily unavailable.
+    }
+    clearStoredSession()
     setSession(null)
   }, [])
 
   useEffect(() => {
     if (!session) return
-    const remaining = session.expiresAt - Date.now()
+    const remaining = Date.parse(session.refreshTokenExpiresAt) - Date.now()
     if (remaining <= 0) {
-      logout()
+      void logout()
       return
     }
-    const timeout = window.setTimeout(logout, Math.min(remaining, 2_147_000_000))
+    const timeout = window.setTimeout(() => void logout(), Math.min(remaining, 2_147_000_000))
     return () => window.clearTimeout(timeout)
   }, [logout, session])
 
   useEffect(() => {
-    const syncSession = () => setSession(readSession())
+    const syncSession = () => setSession(readStoredSession())
+    const expireSession = () => setSession(null)
     window.addEventListener('storage', syncSession)
-    return () => window.removeEventListener('storage', syncSession)
+    window.addEventListener(SESSION_UPDATED_EVENT, syncSession)
+    window.addEventListener(SESSION_EXPIRED_EVENT, expireSession)
+    return () => {
+      window.removeEventListener('storage', syncSession)
+      window.removeEventListener(SESSION_UPDATED_EVENT, syncSession)
+      window.removeEventListener(SESSION_EXPIRED_EVENT, expireSession)
+    }
   }, [])
 
-  const login = useCallback(async (username: string, password: string, remember: boolean): Promise<LoginResult> => {
-    await new Promise((resolve) => window.setTimeout(resolve, 320))
-    const account = demoAccounts.find((candidate) => candidate.username === username.trim().toLowerCase())
-    if (!account || password !== demoPassword) {
-      return { ok: false, message: 'Usuario o contraseña incorrectos.' }
-    }
+  useEffect(() => {
+    if (!activeRefreshToken) return
+    let active = true
+    api.getMe().then((user) => {
+      if (!active) return
+      const current = readStoredSession()
+      if (!current) return
+      const normalized = normalizeUser(user)
+      writeStoredSession({ ...current, user: normalized }, current.persistent)
+      setSession({ ...current, user: normalized })
+    }).catch(() => undefined)
+    return () => { active = false }
+  }, [activeRefreshToken])
 
-    const user: AuthUser = {
-      ...account,
-      roleLabel: roleLabels[account.role],
-      permissions: permissionsForRole(account.role),
+  const login = useCallback(async (username: string, password: string, remember: boolean): Promise<LoginResult> => {
+    try {
+      const response = await api.login(username.trim(), password, remember)
+      const stored = toStoredSession(response, remember)
+      writeStoredSession(stored, remember)
+      setSession(stored)
+      dispatchSessionEvent(SESSION_UPDATED_EVENT)
+      return { ok: true }
+    } catch (reason) {
+      return {
+        ok: false,
+        message: reason instanceof ApiError ? reason.message : 'No se pudo verificar el acceso con el backend.',
+      }
     }
-    const stored: StoredSession = {
-      user,
-      expiresAt: Date.now() + (remember ? 7 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000),
-      persistent: remember,
-    }
-    localStorage.removeItem(LOCAL_SESSION_KEY)
-    sessionStorage.removeItem(TAB_SESSION_KEY)
-    const storage = remember ? localStorage : sessionStorage
-    storage.setItem(remember ? LOCAL_SESSION_KEY : TAB_SESSION_KEY, JSON.stringify(stored))
-    setSession(stored)
-    return { ok: true }
   }, [])
 
   const value = useMemo<AuthContextValue>(() => ({
@@ -72,17 +91,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-function readSession(): StoredSession | null {
-  for (const [storage, key] of [[sessionStorage, TAB_SESSION_KEY], [localStorage, LOCAL_SESSION_KEY]] as const) {
-    try {
-      const value = storage.getItem(key)
-      if (!value) continue
-      const parsed = JSON.parse(value) as StoredSession
-      if (parsed.expiresAt > Date.now() && parsed.user?.role) return parsed
-      storage.removeItem(key)
-    } catch {
-      storage.removeItem(key)
-    }
+function toStoredSession(response: AuthResponse, persistent: boolean): StoredSession {
+  return {
+    accessToken: response.accessToken,
+    refreshToken: response.refreshToken,
+    accessTokenExpiresAt: response.accessTokenExpiresAt,
+    refreshTokenExpiresAt: response.refreshTokenExpiresAt,
+    user: normalizeUser(response.user),
+    persistent,
   }
-  return null
+}
+
+function normalizeUser(user: AuthResponse['user']): AuthUser {
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    department: user.department,
+    role: user.role as UserRole,
+    roleLabel: user.roleLabel,
+    permissions: user.permissions as Permission[],
+  }
 }
