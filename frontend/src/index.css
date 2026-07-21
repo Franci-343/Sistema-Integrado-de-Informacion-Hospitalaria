@@ -16,9 +16,9 @@
   --surface: #ffffff;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; letter-spacing: 0 !important; }
 body { margin: 0; min-width: 320px; }
-button, input, select { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
-button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(31, 111, 139, .22); outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(31, 111, 139, .22); outline-offset: 2px; }
 #root { min-height: 100svh; }

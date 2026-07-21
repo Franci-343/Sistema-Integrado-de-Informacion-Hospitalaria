@@ -1,32 +1,57 @@
-# React + TypeScript + Vite
+# Frontend SIIH
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Interfaz web del Sistema Integrado de Información Hospitalaria para el caso académico del Hospital Universitario San Andrés.
 
-Currently, two official plugins are available:
+## Funcionalidad disponible
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Landing pública basada en el alcance documentado del SIIH.
+- Login de demostración, sesión persistente y cierre de sesión.
+- Navegación protegida y módulos visibles según el rol.
+- Dashboard con métricas de los endpoints `overview`.
+- Pacientes: búsqueda, paginación, alta, detección de duplicados y edición.
+- Citas: agenda diaria, creación, llegada y cancelación.
+- Historia clínica y consultas: lectura, actualización, creación y cierre.
+- Laboratorio, farmacia, inventario, facturación, reportes y administración: consulta, búsqueda, actualización y exportación CSV autorizada.
+- Estados de carga, vacío, error y reintento.
 
-## React Compiler
+Triaje y hospitalización aparecen únicamente para roles autorizados, con estado de integración pendiente porque el backend actual todavía no publica sus endpoints. Las operaciones CRUD de laboratorio, dispensación, inventario, pagos y usuarios tampoco se simulan: las vistas permanecen de consulta hasta que existan contratos de escritura.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Desarrollo
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+La API se consulta en `http://localhost:8080/api/v1` por defecto. Puede cambiarse con:
+
+```bash
+VITE_API_URL=http://localhost:8080/api/v1
+```
+
+## Acceso académico
+
+La clave común del entorno es `siih2026`. Los usuarios disponibles son:
+
+| Usuario | Perfil |
+|---|---|
+| `recepcion` | Admisión y recepción |
+| `medica` | Personal médico |
+| `enfermeria` | Enfermería |
+| `laboratorio` | Laboratorio clínico |
+| `farmacia` | Farmacia |
+| `caja` | Caja y facturación |
+| `direccion` | Dirección |
+| `admin` | Administración del sistema |
+
+Este login es deliberadamente local porque el backend aún no implementa `/auth/login`, `/auth/me`, renovación ni revocación de tokens. No debe considerarse autenticación de producción.
+
+## Validación
+
+```bash
+npm run lint
+npm run build
+npm run test:e2e
+```
+
+Las pruebas E2E usan Microsoft Edge instalado y cubren landing, login, protección de rutas, permisos, navegación por pestañas y viewport móvil.
