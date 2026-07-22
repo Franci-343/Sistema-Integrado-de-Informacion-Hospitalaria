@@ -8,5 +8,6 @@ public enum AppointmentStatus {
     COMPLETED,
     CANCELLED,
     RESCHEDULED,
-    NO_SHOW
+    NO_SHOW,
+    DERIVED_TO_HOSPITALIZATION
 }

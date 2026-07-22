@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import type { RegisterRequest } from '../api'
 import type { Permission, UserRole } from './permissions'
 
 export type AuthUser = {
@@ -16,6 +17,7 @@ export type LoginResult = { ok: true } | { ok: false; message: string }
 export type AuthContextValue = {
   user: AuthUser | null
   login: (username: string, password: string, remember: boolean) => Promise<LoginResult>
+  register: (payload: RegisterRequest) => Promise<LoginResult>
   logout: () => Promise<void>
   hasPermission: (permission: Permission) => boolean
 }

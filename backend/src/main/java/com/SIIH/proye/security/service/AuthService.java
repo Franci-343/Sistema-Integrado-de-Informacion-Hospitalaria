@@ -1,11 +1,15 @@
 package com.SIIH.proye.security.service;
 
 import com.SIIH.proye.common.audit.AuditService;
+import com.SIIH.proye.common.database.CodeGenerator;
+import com.SIIH.proye.common.exception.ConflictException;
 import com.SIIH.proye.common.exception.UnauthorizedException;
 import com.SIIH.proye.security.AuthenticatedUser;
 import com.SIIH.proye.security.api.AuthModels.AuthResponse;
 import com.SIIH.proye.security.api.AuthModels.LoginRequest;
+import com.SIIH.proye.security.api.AuthModels.RegisterRequest;
 import com.SIIH.proye.security.api.AuthModels.UserResponse;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,7 +25,9 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -29,6 +35,10 @@ public class AuthService {
 
     private static final String DUMMY_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final Set<String> PUBLIC_REGISTER_ROLES = Set.of(
+            "RECEPTION", "DOCTOR", "NURSE", "LAB_TECHNICIAN", "PHARMACIST", "CASHIER", "DIRECTOR"
+    );
+    private static final Set<String> PROFESSIONAL_ROLES = Set.of("DOCTOR", "NURSE", "LAB_TECHNICIAN", "PHARMACIST");
 
     private final JdbcTemplate jdbcTemplate;
     private final SecurityAccountService accounts;
@@ -100,6 +110,41 @@ public class AuthService {
     }
 
     @Transactional
+    public AuthResponse register(RegisterRequest request, String clientInfo) {
+        String role = request.role().trim().toUpperCase(Locale.ROOT);
+        if (!PUBLIC_REGISTER_ROLES.contains(role)) {
+            throw new ConflictException("El rol seleccionado no esta disponible para registro academico.");
+        }
+        String username = request.username().trim().toLowerCase(Locale.ROOT);
+        try {
+            UUID userId = jdbcTemplate.queryForObject("""
+                    INSERT INTO app_user (username, password_hash, first_name, last_name, email, status)
+                    VALUES (?, ?, ?, ?, ?, 'ACTIVE') RETURNING id
+                    """, UUID.class, username, passwordEncoder.encode(request.password()),
+                    request.firstName().trim(), request.lastName().trim(), clean(request.email()));
+            jdbcTemplate.update("""
+                    INSERT INTO user_role (user_id, role_id, assigned_by)
+                    SELECT ?, id, NULL FROM role WHERE code = ? AND active
+                    """, userId, role);
+            if (PROFESSIONAL_ROLES.contains(role)) {
+                jdbcTemplate.update("""
+                        INSERT INTO professional (user_id, professional_code, license_number, professional_type, status)
+                        VALUES (?, ?, ?, ?, 'ACTIVE')
+                        """, userId, CodeGenerator.next("PROF"), clean(request.licenseNumber()), role);
+            }
+            AuthenticatedUser user = accounts.loadActive(userId);
+            AuthResponse response = createSession(user, request.remember()
+                    ? Duration.ofDays(rememberTokenDays)
+                    : Duration.ofHours(refreshTokenHours), clientInfo);
+            auditService.record("REGISTER", "USER", userId, userId, null,
+                    Map.of("username", username, "role", role));
+            return response;
+        } catch (DataIntegrityViolationException exception) {
+            throw new ConflictException("El nombre de usuario, correo o matricula ya esta registrado.");
+        }
+    }
+
+    @Transactional
     public AuthResponse refresh(String rawRefreshToken) {
         String hash = hash(rawRefreshToken);
         SessionRow session = jdbcTemplate.query("""
@@ -158,6 +203,11 @@ public class AuthService {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 no esta disponible.", exception);
         }
+    }
+
+    private static String clean(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim();
     }
 
     private static String cleanClientInfo(String value) {

@@ -1,7 +1,9 @@
 package com.SIIH.proye.security.api;
 
 import com.SIIH.proye.security.AuthenticatedUser;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
 import java.util.List;
@@ -16,6 +18,18 @@ public final class AuthModels {
     public record LoginRequest(
             @NotBlank String username,
             @NotBlank String password,
+            boolean remember
+    ) {
+    }
+
+    public record RegisterRequest(
+            @NotBlank @Size(max = 80) String username,
+            @NotBlank @Size(min = 8, max = 100) String password,
+            @NotBlank @Size(max = 100) String firstName,
+            @NotBlank @Size(max = 100) String lastName,
+            @Email @Size(max = 255) String email,
+            @NotBlank String role,
+            @Size(max = 80) String licenseNumber,
             boolean remember
     ) {
     }

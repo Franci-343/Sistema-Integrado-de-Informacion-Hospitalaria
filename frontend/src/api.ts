@@ -23,6 +23,17 @@ export type AuthResponse = {
   user: AuthUserResponse
 }
 
+export type RegisterRequest = {
+  username: string
+  password: string
+  firstName: string
+  lastName: string
+  email?: string
+  role: string
+  licenseNumber?: string
+  remember: boolean
+}
+
 export type PageResponse<T> = {
   content: T[]
   page: number
@@ -79,6 +90,7 @@ export type AppointmentStatus =
   | 'CANCELLED'
   | 'RESCHEDULED'
   | 'NO_SHOW'
+  | 'DERIVED_TO_HOSPITALIZATION'
 
 export type Appointment = {
   id: string
@@ -243,11 +255,21 @@ export type Triage = {
 
 export type TriageRequest = Omit<Triage, 'id' | 'encounterCode' | 'patientCode' | 'patientName' | 'recordedBy' | 'recordedAt' | 'encounterId'> & { encounterId?: string }
 
-export type Bed = { id: string; code: string; room: string; bed: string; status: string }
-export type NursingNote = { id: string; note: string; recordedBy: string; recordedAt: string }
+export type Bed = { id: string; code: string; room: string; bed: string; status: string; serviceCode: string | null; floor: string | null; bedType: string | null }
+export type HospitalizationOrigin = { encounterId: string; encounterCode: string; encounterType: string; patientId: string; patientCode: string; patientName: string; appointmentId: string | null; appointmentCode: string | null; consultationCode: string | null; openedAt: string }
+export type HospitalizationOrder = { id: string; orderCode: string; originEncounterId: string; originEncounterCode: string; originEncounterType: string; patientId: string; patientCode: string; patientName: string; responsibleProfessionalId: string; responsibleProfessional: string; reason: string; presumptiveDiagnosis: string; destinationService: string; status: string; orderedAt: string; executedAt: string | null; cancelledAt: string | null }
+export type HospitalizationOrderCreateRequest = { originEncounterId: string; responsibleProfessionalId: string; reason: string; presumptiveDiagnosis: string; destinationService: string }
+export type NursingNoteCreateRequest = { temperatureC: number | null; systolicBp: number | null; diastolicBp: number | null; heartRate: number | null; respiratoryRate: number | null; oxygenSaturation: number | null; glucoseMgDl: number | null; weightKg: number | null; note: string }
+export type NursingNote = NursingNoteCreateRequest & { id: string; recordedBy: string; recordedAt: string }
+export type DischargeCreateRequest = { dischargeDiagnosis: string; dischargeType: 'MEDICAL' | 'VOLUNTARY' | 'TRANSFER' | 'DEATH' | 'ABANDONMENT'; dischargeInstructions: string; followUpPlan?: string | null; medicationsOnDischarge?: string | null }
 export type Hospitalization = {
   id: string
   hospitalizationCode: string
+  hospitalizationOrderId: string | null
+  hospitalizationOrderCode: string | null
+  originEncounterId: string | null
+  originEncounterCode: string | null
+  originEncounterType: string | null
   patientId: string
   patientCode: string
   patientName: string
@@ -255,9 +277,16 @@ export type Hospitalization = {
   bedCode: string
   room: string
   bed: string
+  bedServiceCode: string | null
+  bedFloor: string | null
+  bedType: string | null
   status: string
   admissionReason: string
+  dischargeDiagnosis: string | null
+  dischargeType: string | null
   dischargeInstructions: string | null
+  followUpPlan: string | null
+  medicationsOnDischarge: string | null
   responsibleProfessional: string
   admittedAt: string
   dischargedAt: string | null
@@ -388,6 +417,13 @@ export const api = {
     })
   },
 
+  register(payload: RegisterRequest) {
+    return request<AuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+
   getMe() {
     return request<AuthUserResponse>('/auth/me')
   },
@@ -507,24 +543,36 @@ export const api = {
     return request<Triage>(`/triage/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
   },
 
-  getBeds(status?: string) {
-    return request<Bed[]>(`/beds${queryString({ status })}`)
+  getBeds(status?: string, serviceCode?: string) {
+    return request<Bed[]>(`/beds${queryString({ status, serviceCode })}`)
+  },
+
+  getHospitalizationOrigins(patientId?: string) {
+    return request<HospitalizationOrigin[]>(`/hospitalization-origins${queryString({ patientId })}`)
+  },
+
+  getHospitalizationOrders(status?: string) {
+    return request<HospitalizationOrder[]>(`/hospitalization-orders${queryString({ status })}`)
+  },
+
+  createHospitalizationOrder(payload: HospitalizationOrderCreateRequest) {
+    return request<HospitalizationOrder>('/hospitalization-orders', { method: 'POST', body: JSON.stringify(payload) })
   },
 
   getHospitalizations(patientId?: string, status?: string) {
     return request<Hospitalization[]>(`/hospitalizations${queryString({ patientId, status })}`)
   },
 
-  admitPatient(payload: { patientId: string; bedId: string; responsibleProfessionalId: string; admissionReason: string }) {
+  admitPatient(payload: { hospitalizationOrderId: string; patientId?: string; bedId: string; responsibleProfessionalId?: string; admissionReason?: string }) {
     return request<Hospitalization>('/hospitalizations', { method: 'POST', body: JSON.stringify(payload) })
   },
 
-  addNursingNote(id: string, note: string) {
-    return request<NursingNote>(`/hospitalizations/${id}/nursing-notes`, { method: 'POST', body: JSON.stringify({ note }) })
+  addNursingNote(id: string, payload: NursingNoteCreateRequest) {
+    return request<NursingNote>(`/hospitalizations/${id}/nursing-notes`, { method: 'POST', body: JSON.stringify(payload) })
   },
 
-  dischargePatient(id: string, dischargeInstructions: string) {
-    return request<Hospitalization>(`/hospitalizations/${id}/discharge`, { method: 'PUT', body: JSON.stringify({ dischargeInstructions }) })
+  dischargePatient(id: string, payload: DischargeCreateRequest) {
+    return request<Hospitalization>(`/hospitalizations/${id}/discharge`, { method: 'PUT', body: JSON.stringify(payload) })
   },
 
   getLabTests() {

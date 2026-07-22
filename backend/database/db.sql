@@ -231,8 +231,8 @@ CREATE TABLE IF NOT EXISTS appointment (
     specialty_id UUID NOT NULL REFERENCES specialty(id) ON DELETE RESTRICT,
     starts_at TIMESTAMPTZ NOT NULL,
     ends_at TIMESTAMPTZ NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED'
-        CHECK (status IN ('SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'RESCHEDULED', 'NO_SHOW')),
+    status VARCHAR(30) NOT NULL DEFAULT 'SCHEDULED'
+        CHECK (status IN ('SCHEDULED', 'CONFIRMED', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'RESCHEDULED', 'NO_SHOW', 'DERIVED_TO_HOSPITALIZATION')),
     reason VARCHAR(255),
     cancellation_reason VARCHAR(255),
     arrived_at TIMESTAMPTZ,
@@ -601,23 +601,62 @@ CREATE TABLE IF NOT EXISTS bed_location (
     code VARCHAR(40) NOT NULL UNIQUE,
     room VARCHAR(80) NOT NULL,
     bed VARCHAR(40) NOT NULL,
+    service_code VARCHAR(50) NOT NULL DEFAULT 'MED_INT',
+    floor VARCHAR(40),
+    bed_type VARCHAR(40) NOT NULL DEFAULT 'GENERAL',
     status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE'
         CHECK (status IN ('AVAILABLE', 'OCCUPIED', 'MAINTENANCE', 'INACTIVE')),
     UNIQUE (room, bed)
 );
+
+CREATE INDEX IF NOT EXISTS ix_bed_location_service_status
+    ON bed_location (service_code, status, room, bed);
+
+CREATE TABLE IF NOT EXISTS hospitalization_order (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_code VARCHAR(30) NOT NULL UNIQUE,
+    origin_encounter_id UUID NOT NULL REFERENCES care_encounter(id) ON DELETE RESTRICT,
+    patient_id UUID NOT NULL REFERENCES patient(id) ON DELETE RESTRICT,
+    responsible_professional_id UUID NOT NULL REFERENCES professional(id) ON DELETE RESTRICT,
+    reason TEXT NOT NULL,
+    presumptive_diagnosis TEXT NOT NULL,
+    destination_service VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+        CHECK (status IN ('PENDING', 'EXECUTED', 'CANCELLED')),
+    ordered_by UUID REFERENCES app_user(id) ON DELETE SET NULL,
+    ordered_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    executed_at TIMESTAMPTZ,
+    cancelled_at TIMESTAMPTZ,
+    cancellation_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT hospitalization_order_execution CHECK (status <> 'EXECUTED' OR executed_at IS NOT NULL),
+    CONSTRAINT hospitalization_order_cancellation CHECK (status <> 'CANCELLED' OR cancelled_at IS NOT NULL)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_hospitalization_order_origin_active
+    ON hospitalization_order (origin_encounter_id) WHERE status <> 'CANCELLED';
+CREATE INDEX IF NOT EXISTS ix_hospitalization_order_status
+    ON hospitalization_order (status, ordered_at DESC);
 
 CREATE TABLE IF NOT EXISTS hospitalization (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     hospitalization_code VARCHAR(30) NOT NULL UNIQUE,
     patient_id UUID NOT NULL REFERENCES patient(id) ON DELETE RESTRICT,
     admission_encounter_id UUID REFERENCES care_encounter(id) ON DELETE RESTRICT,
+    origin_encounter_id UUID REFERENCES care_encounter(id) ON DELETE RESTRICT,
+    hospitalization_order_id UUID REFERENCES hospitalization_order(id) ON DELETE RESTRICT,
     bed_id UUID REFERENCES bed_location(id) ON DELETE RESTRICT,
     admitted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     discharged_at TIMESTAMPTZ,
     status VARCHAR(20) NOT NULL DEFAULT 'ADMITTED'
         CHECK (status IN ('ADMITTED', 'TRANSFERRED', 'DISCHARGED', 'CANCELLED')),
     admission_reason TEXT NOT NULL,
+    discharge_diagnosis TEXT,
+    discharge_type VARCHAR(30),
     discharge_instructions TEXT,
+    follow_up_plan TEXT,
+    medications_on_discharge TEXT,
     responsible_professional_id UUID REFERENCES professional(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -627,11 +666,23 @@ CREATE TABLE IF NOT EXISTS hospitalization (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_active_bed_assignment
     ON hospitalization (bed_id) WHERE status = 'ADMITTED' AND bed_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_hospitalization_order_execution
+    ON hospitalization (hospitalization_order_id) WHERE hospitalization_order_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_hospitalization_origin
+    ON hospitalization (origin_encounter_id);
 
 CREATE TABLE IF NOT EXISTS nursing_note (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     hospitalization_id UUID NOT NULL REFERENCES hospitalization(id) ON DELETE RESTRICT,
     encounter_id UUID REFERENCES care_encounter(id) ON DELETE RESTRICT,
+    temperature_c NUMERIC(4,1) CHECK (temperature_c IS NULL OR temperature_c BETWEEN 20 AND 50),
+    systolic_bp SMALLINT CHECK (systolic_bp IS NULL OR systolic_bp BETWEEN 40 AND 300),
+    diastolic_bp SMALLINT CHECK (diastolic_bp IS NULL OR diastolic_bp BETWEEN 20 AND 200),
+    heart_rate SMALLINT CHECK (heart_rate IS NULL OR heart_rate BETWEEN 20 AND 250),
+    respiratory_rate SMALLINT CHECK (respiratory_rate IS NULL OR respiratory_rate BETWEEN 5 AND 80),
+    oxygen_saturation NUMERIC(5,2) CHECK (oxygen_saturation IS NULL OR oxygen_saturation BETWEEN 0 AND 100),
+    glucose_mg_dl NUMERIC(6,2) CHECK (glucose_mg_dl IS NULL OR glucose_mg_dl > 0),
+    weight_kg NUMERIC(6,2) CHECK (weight_kg IS NULL OR weight_kg > 0),
     note TEXT NOT NULL,
     recorded_by UUID REFERENCES app_user(id) ON DELETE SET NULL,
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -778,7 +829,8 @@ BEGIN
         'app_user', 'role', 'specialty', 'professional', 'service_catalog',
         'patient', 'clinical_history', 'appointment', 'care_encounter',
         'consultation', 'lab_order', 'lab_test_catalog', 'medication',
-        'inventory_stock', 'prescription', 'hospitalization', 'invoice'
+        'inventory_stock', 'prescription', 'hospitalization_order',
+        'hospitalization', 'invoice'
     ] LOOP
         EXECUTE format('DROP TRIGGER IF EXISTS %I ON %I', 'trg_' || table_name || '_updated_at', table_name);
         EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION siih_set_updated_at()', 'trg_' || table_name || '_updated_at', table_name);

@@ -5,6 +5,7 @@ import com.SIIH.proye.security.api.AuthModels.AuthResponse;
 import com.SIIH.proye.security.api.AuthModels.LoginRequest;
 import com.SIIH.proye.security.api.AuthModels.LogoutRequest;
 import com.SIIH.proye.security.api.AuthModels.RefreshRequest;
+import com.SIIH.proye.security.api.AuthModels.RegisterRequest;
 import com.SIIH.proye.security.api.AuthModels.UserResponse;
 import com.SIIH.proye.security.service.AuthService;
 import jakarta.validation.Valid;
@@ -31,6 +32,12 @@ public class AuthController {
     public AuthResponse login(@Valid @RequestBody LoginRequest request,
                               @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         return authService.login(request, userAgent);
+    }
+
+    @PostMapping("/register")
+    public AuthResponse register(@Valid @RequestBody RegisterRequest request,
+                                 @RequestHeader(value = "User-Agent", required = false) String userAgent) {
+        return authService.register(request, userAgent);
     }
 
     @PostMapping("/refresh")

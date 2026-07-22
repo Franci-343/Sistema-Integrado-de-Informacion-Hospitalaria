@@ -3,6 +3,9 @@ package com.SIIH.proye.hospitalization.api;
 import com.SIIH.proye.hospitalization.api.ClinicalOperationsModels.BedResponse;
 import com.SIIH.proye.hospitalization.api.ClinicalOperationsModels.DischargeRequest;
 import com.SIIH.proye.hospitalization.api.ClinicalOperationsModels.HospitalizationCreateRequest;
+import com.SIIH.proye.hospitalization.api.ClinicalOperationsModels.HospitalizationOrderCreateRequest;
+import com.SIIH.proye.hospitalization.api.ClinicalOperationsModels.HospitalizationOrderResponse;
+import com.SIIH.proye.hospitalization.api.ClinicalOperationsModels.HospitalizationOriginResponse;
 import com.SIIH.proye.hospitalization.api.ClinicalOperationsModels.HospitalizationResponse;
 import com.SIIH.proye.hospitalization.api.ClinicalOperationsModels.NursingNoteRequest;
 import com.SIIH.proye.hospitalization.api.ClinicalOperationsModels.NursingNoteResponse;
@@ -62,8 +65,27 @@ public class ClinicalOperationsController {
     }
 
     @GetMapping("/beds")
-    public List<BedResponse> beds(@RequestParam(required = false) String status) {
-        return service.listBeds(status);
+    public List<BedResponse> beds(@RequestParam(required = false) String status,
+                                  @RequestParam(required = false) String serviceCode) {
+        return service.listBeds(status, serviceCode);
+    }
+
+    @GetMapping("/hospitalization-origins")
+    public List<HospitalizationOriginResponse> hospitalizationOrigins(@RequestParam(required = false) UUID patientId) {
+        return service.listHospitalizationOrigins(patientId);
+    }
+
+    @GetMapping("/hospitalization-orders")
+    public List<HospitalizationOrderResponse> hospitalizationOrders(@RequestParam(required = false) String status) {
+        return service.listHospitalizationOrders(status);
+    }
+
+    @PostMapping("/hospitalization-orders")
+    @ResponseStatus(HttpStatus.CREATED)
+    public HospitalizationOrderResponse createHospitalizationOrder(
+            @Valid @RequestBody HospitalizationOrderCreateRequest request,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        return service.createHospitalizationOrder(request, user);
     }
 
     @GetMapping("/hospitalizations")

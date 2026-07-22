@@ -81,12 +81,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const register = useCallback(async (payload: Parameters<typeof api.register>[0]): Promise<LoginResult> => {
+    try {
+      const response = await api.register({ ...payload, username: payload.username.trim() })
+      const stored = toStoredSession(response, payload.remember)
+      writeStoredSession(stored, payload.remember)
+      setSession(stored)
+      dispatchSessionEvent(SESSION_UPDATED_EVENT)
+      return { ok: true }
+    } catch (reason) {
+      return {
+        ok: false,
+        message: reason instanceof ApiError ? reason.message : 'No se pudo crear la cuenta academica.',
+      }
+    }
+  }, [])
+
   const value = useMemo<AuthContextValue>(() => ({
     user: session?.user ?? null,
     login,
+    register,
     logout,
     hasPermission: (permission) => Boolean(session?.user.permissions.includes(permission)),
-  }), [login, logout, session])
+  }), [login, logout, register, session])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

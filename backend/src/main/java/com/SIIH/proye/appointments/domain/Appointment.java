@@ -40,7 +40,7 @@ public class Appointment {
     private OffsetDateTime endsAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 30)
     private AppointmentStatus status = AppointmentStatus.SCHEDULED;
 
     private String reason;
