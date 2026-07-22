@@ -93,6 +93,20 @@ test('ofrece alta, edición, roles y auditoría en administración', async ({ pa
   await page.getByRole('button', { name: 'Crear cuenta', exact: true }).click()
   await expect(page.getByText('Lucía Mamani')).toBeVisible()
 
+  await page.getByRole('tab', { name: 'Profesionales' }).click()
+  await expect(page.getByText('Elena Vargas')).toBeVisible()
+  await page.getByRole('button', { name: 'Crear doctor' }).click()
+  await expect(page.getByRole('dialog', { name: 'Crear doctor' })).toBeVisible()
+  await page.getByLabel('Nombre de usuario').fill('mario.perez')
+  await page.getByLabel('Nombres').fill('Mario')
+  await page.getByLabel('Apellidos').fill('Pérez')
+  await page.getByLabel('Matrícula profesional').fill('RM-TEST-009')
+  await page.getByLabel(/Contraseña inicial/).fill('Doctor-2026')
+  await page.getByLabel('Confirmar contraseña').fill('Doctor-2026')
+  await page.getByRole('checkbox', { name: /Cardiolog/ }).check()
+  await page.getByRole('dialog', { name: 'Crear doctor' }).getByRole('button', { name: 'Crear doctor', exact: true }).click()
+  await expect(page.getByText('Mario Pérez')).toBeVisible()
+
   await page.getByRole('tab', { name: 'Roles y permisos' }).click()
   await expect(page.getByRole('heading', { name: 'Roles disponibles' })).toBeVisible()
   await page.getByRole('tab', { name: 'Auditoría' }).click()
@@ -146,6 +160,13 @@ async function installApiMock(page: Page, requests: string[] = [], options: { du
   const mockAudit = [
     { id: 'audit-1', userId: mockUsers[0].id, username: 'admin', action: 'LOGIN', entityType: 'USER', entityId: mockUsers[0].id, origin: '127.0.0.1', success: true, failureReason: null, eventAt: new Date().toISOString() },
   ]
+  const mockSpecialties = [
+    { id: 'specialty-med', code: 'MED_INT', name: 'Medicina interna', description: 'AtenciÃ³n integral del adulto' },
+    { id: 'specialty-card', code: 'CARD', name: 'CardiologÃ­a', description: 'PrevenciÃ³n y tratamiento cardiovascular' },
+  ]
+  const mockProfessionals = [
+    { id: 'professional-1', userId: 'doctor-1', username: 'elena.vargas', displayName: 'Elena Vargas', professionalCode: 'PROF-0001', licenseNumber: 'RM-DEMO-001', professionalType: 'DOCTOR', status: 'ACTIVE', specialties: ['Medicina interna'] },
+  ]
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request()
     const url = new URL(request.url())
@@ -170,6 +191,17 @@ async function installApiMock(page: Page, requests: string[] = [], options: { du
     }
     if (url.pathname.endsWith('/roles')) return json(route, mockRoles)
     if (url.pathname.endsWith('/audit-events')) return json(route, mockAudit)
+    if (url.pathname.endsWith('/professionals/admin')) return json(route, mockProfessionals)
+    if (url.pathname.endsWith('/professionals')) {
+      if (request.method() === 'POST') {
+        const body = request.postDataJSON() as { username: string; firstName: string; lastName: string; licenseNumber: string; professionalType: string; specialtyIds: string[] }
+        const created = { id: `professional-${mockProfessionals.length + 1}`, userId: `doctor-${mockProfessionals.length + 1}`, username: body.username, displayName: `${body.firstName} ${body.lastName}`, professionalCode: `PROF-TEST-${mockProfessionals.length + 1}`, licenseNumber: body.licenseNumber, professionalType: body.professionalType, status: 'ACTIVE', specialties: mockSpecialties.filter((item) => body.specialtyIds.includes(item.id)).map((item) => item.name) }
+        mockProfessionals.push(created)
+        return json(route, created, 201)
+      }
+      return json(route, mockProfessionals.map((item) => ({ id: item.id, professionalCode: item.professionalCode, professionalType: item.professionalType, displayName: item.displayName, licenseNumber: item.licenseNumber })))
+    }
+    if (url.pathname.endsWith('/specialties')) return json(route, mockSpecialties)
     if (url.pathname.endsWith('/patients/duplicate-check')) return json(route, options.duplicates ?? [])
     if (url.pathname.endsWith('/patients')) return json(route, pageResponse([]))
     if (url.pathname.endsWith('/appointments')) return json(route, pageResponse([]))

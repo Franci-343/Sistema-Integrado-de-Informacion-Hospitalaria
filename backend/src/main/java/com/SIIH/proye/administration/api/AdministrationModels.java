@@ -26,6 +26,18 @@ public final class AdministrationModels {
     ) {
     }
 
+    public record ProfessionalCreateRequest(
+            @NotBlank @Size(max = 80) String username,
+            @NotBlank @Size(min = 8, max = 100) String password,
+            @NotBlank @Size(max = 100) String firstName,
+            @NotBlank @Size(max = 100) String lastName,
+            @Email @Size(max = 255) String email,
+            @NotBlank @Size(max = 80) String licenseNumber,
+            @NotBlank @Size(max = 30) String professionalType,
+            @NotEmpty Set<UUID> specialtyIds
+    ) {
+    }
+
     public record UserUpdateRequest(
             @NotBlank @Size(max = 100) String firstName,
             @NotBlank @Size(max = 100) String lastName,
@@ -70,6 +82,19 @@ public final class AdministrationModels {
     }
 
     public record PermissionResponse(UUID id, String code, String name, String description) {
+    }
+
+    public record ProfessionalAdminResponse(
+            UUID id,
+            UUID userId,
+            String username,
+            String displayName,
+            String professionalCode,
+            String licenseNumber,
+            String professionalType,
+            String status,
+            List<String> specialties
+    ) {
     }
 
     public record AuditEventResponse(

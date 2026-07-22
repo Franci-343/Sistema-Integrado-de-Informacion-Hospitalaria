@@ -79,6 +79,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/users/**").hasAuthority("ADMIN_WRITE")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/users/**").hasAuthority("ADMIN_WRITE")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/users/**").hasAuthority("ADMIN_WRITE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/professionals/admin").hasAuthority("ADMIN_READ")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/professionals/**").hasAuthority("ADMIN_WRITE")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

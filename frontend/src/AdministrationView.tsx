@@ -10,6 +10,7 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Stethoscope,
   UserCheck,
   UserPlus,
   UserX,
@@ -17,10 +18,10 @@ import {
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { api, type AdminUser, type AuditEvent, type Role } from './api'
+import { api, type AdminUser, type AuditEvent, type ProfessionalRegistryItem, type Role, type Specialty } from './api'
 import { useAuth } from './auth/auth-context'
 
-type AdminTab = 'users' | 'roles' | 'audit'
+type AdminTab = 'users' | 'professionals' | 'roles' | 'audit'
 type AccountStatus = 'ACTIVE' | 'INACTIVE' | 'LOCKED'
 type UserEditorValues = {
   username: string
@@ -29,6 +30,16 @@ type UserEditorValues = {
   lastName: string
   email?: string
   roleCodes: string[]
+}
+type ProfessionalEditorValues = {
+  username: string
+  password: string
+  firstName: string
+  lastName: string
+  email?: string
+  licenseNumber: string
+  professionalType: string
+  specialtyIds: string[]
 }
 type AuditFilters = {
   username: string
@@ -54,6 +65,8 @@ export function AdministrationView({ onNotify }: { onNotify: (message: string) =
   const { user: currentUser } = useAuth()
   const [tab, setTab] = useState<AdminTab>('users')
   const [users, setUsers] = useState<AdminUser[]>([])
+  const [professionals, setProfessionals] = useState<ProfessionalRegistryItem[]>([])
+  const [specialties, setSpecialties] = useState<Specialty[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [audit, setAudit] = useState<AuditEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,6 +79,7 @@ export function AdministrationView({ onNotify }: { onNotify: (message: string) =
   const [auditFilters, setAuditFilters] = useState<AuditFilters>(emptyAuditFilters)
   const [appliedAuditFilters, setAppliedAuditFilters] = useState<AuditFilters>(emptyAuditFilters)
   const [editor, setEditor] = useState<{ mode: 'create' } | { mode: 'edit'; account: AdminUser } | null>(null)
+  const [professionalEditor, setProfessionalEditor] = useState(false)
   const [rolesAccount, setRolesAccount] = useState<AdminUser | null>(null)
   const [statusChange, setStatusChange] = useState<{ account: AdminUser; status: AccountStatus } | null>(null)
 
@@ -73,14 +87,18 @@ export function AdministrationView({ onNotify }: { onNotify: (message: string) =
     setLoading(true)
     setError('')
     try {
-      const [accounts, availableRoles, events] = await Promise.all([
+      const [accounts, availableRoles, events, professionalList, specialtyList] = await Promise.all([
         api.getUsers(),
         api.getRoles(),
         api.getAuditEvents(),
+        api.getProfessionalRegistry(),
+        api.getSpecialties(),
       ])
       setUsers(accounts)
       setRoles(availableRoles)
       setAudit(events)
+      setProfessionals(professionalList)
+      setSpecialties(specialtyList)
     } catch (reason) {
       setError(errorMessage(reason))
     } finally {
@@ -113,7 +131,7 @@ export function AdministrationView({ onNotify }: { onNotify: (message: string) =
   }
 
   const refreshAfterChange = async (message: string) => {
-    const [accounts, events] = await Promise.all([
+    const [accounts, events, professionalList] = await Promise.all([
       api.getUsers(),
       api.getAuditEvents({
         username: appliedAuditFilters.username || undefined,
@@ -122,9 +140,11 @@ export function AdministrationView({ onNotify }: { onNotify: (message: string) =
         from: filterTimestamp(appliedAuditFilters.from, false),
         to: filterTimestamp(appliedAuditFilters.to, true),
       }),
+      api.getProfessionalRegistry(),
     ])
     setUsers(accounts)
     setAudit(events)
+    setProfessionals(professionalList)
     onNotify(message)
   }
 
@@ -158,13 +178,14 @@ export function AdministrationView({ onNotify }: { onNotify: (message: string) =
   return <>
     <section className="page-heading compact-heading admin-heading">
       <div><span className="eyebrow">Seguridad e identidad</span><h1>Administración</h1><p>Gestiona cuentas institucionales, roles efectivos y eventos de auditoría.</p></div>
-      <div className="heading-actions"><button type="button" className="button button-secondary" disabled={loading} onClick={() => void loadAll()}><RefreshCw aria-hidden="true" /> Actualizar</button><button type="button" className="button button-primary" onClick={() => setEditor({ mode: 'create' })}><UserPlus aria-hidden="true" /> Nuevo usuario</button></div>
+      <div className="heading-actions"><button type="button" className="button button-secondary" disabled={loading} onClick={() => void loadAll()}><RefreshCw aria-hidden="true" /> Actualizar</button><button type="button" className="button button-secondary" onClick={() => setProfessionalEditor(true)}><Stethoscope aria-hidden="true" /> Nuevo doctor</button><button type="button" className="button button-primary" onClick={() => setEditor({ mode: 'create' })}><UserPlus aria-hidden="true" /> Nuevo usuario</button></div>
     </section>
 
     {error && <section className="panel operation-error admin-error" role="alert"><strong>No se pudo completar la operación</strong><span>{error}</span><button type="button" className="button button-secondary" onClick={() => void loadAll()}>Reintentar</button></section>}
 
     <div className="operation-summary admin-summary" aria-label="Resumen de seguridad">
       <AdminMetric label="Usuarios registrados" value={users.length} icon={<Users />} />
+      <AdminMetric label="Profesionales clínicos" value={professionals.filter((item) => item.status === 'ACTIVE').length} icon={<Stethoscope />} />
       <AdminMetric label="Cuentas activas" value={users.filter((account) => account.status === 'ACTIVE').length} icon={<UserCheck />} />
       <AdminMetric label="Bloqueadas o inactivas" value={users.filter((account) => account.status !== 'ACTIVE').length} icon={<LockKeyhole />} />
       <AdminMetric label="Eventos consultados" value={audit.length} icon={<ShieldCheck />} />
@@ -173,6 +194,7 @@ export function AdministrationView({ onNotify }: { onNotify: (message: string) =
     <section className="panel admin-console">
       <div className="admin-tabs" role="tablist" aria-label="Secciones de administración">
         <button type="button" role="tab" aria-selected={tab === 'users'} className={tab === 'users' ? 'selected' : ''} onClick={() => setTab('users')}>Usuarios</button>
+        <button type="button" role="tab" aria-selected={tab === 'professionals'} className={tab === 'professionals' ? 'selected' : ''} onClick={() => setTab('professionals')}>Profesionales</button>
         <button type="button" role="tab" aria-selected={tab === 'roles'} className={tab === 'roles' ? 'selected' : ''} onClick={() => setTab('roles')}>Roles y permisos</button>
         <button type="button" role="tab" aria-selected={tab === 'audit'} className={tab === 'audit' ? 'selected' : ''} onClick={() => setTab('audit')}>Auditoría</button>
       </div>
@@ -194,6 +216,19 @@ export function AdministrationView({ onNotify }: { onNotify: (message: string) =
           </tr>)}
         </tbody></table></div>
         <Pagination page={userPage} pages={userPages} total={filteredUsers.length} label="usuarios" onChange={setUserPage} />
+      </div>}
+
+      {tab === 'professionals' && <div role="tabpanel" className="admin-tab-panel">
+        <div className="admin-section-heading"><div><h2>Profesionales habilitados</h2><p>Estos perfiles son los que aparecen como médicos disponibles al programar citas.</p></div><button type="button" className="button button-primary" onClick={() => setProfessionalEditor(true)}><Stethoscope aria-hidden="true" /> Crear doctor</button></div>
+        <div className="table-wrap admin-table"><table><thead><tr><th>Profesional</th><th>Matrícula</th><th>Tipo</th><th>Especialidades</th><th>Estado</th></tr></thead><tbody>
+          {loading ? <AdminEmpty columns={5} text="Cargando profesionales..." /> : professionals.length === 0 ? <AdminEmpty columns={5} text="No hay profesionales registrados." /> : professionals.map((professional) => <tr key={professional.id}>
+            <td><div className="admin-account"><span className="avatar avatar-soft">{initials(professional.displayName)}</span><span><strong>{professional.displayName}</strong><small>@{professional.username} · {professional.professionalCode}</small></span></div></td>
+            <td>{professional.licenseNumber || 'Sin matrícula'}</td>
+            <td>{professionalTypeLabel(professional.professionalType)}</td>
+            <td><div className="role-tags">{professional.specialties.length ? professional.specialties.map((specialty) => <span key={specialty}>{specialty}</span>) : <span>Sin especialidad</span>}</div></td>
+            <td><AccountStatusPill status={professional.status} /></td>
+          </tr>)}
+        </tbody></table></div>
       </div>}
 
       {tab === 'roles' && <div role="tabpanel" className="admin-tab-panel">
@@ -228,6 +263,7 @@ export function AdministrationView({ onNotify }: { onNotify: (message: string) =
       setEditor(null)
       await refreshAfterChange(values.password ? 'Cuenta actualizada y sesiones anteriores revocadas' : 'Datos de la cuenta actualizados')
     }} />}
+    {professionalEditor && <ProfessionalEditorModal specialties={specialties} onClose={() => setProfessionalEditor(false)} onSave={async (values) => { await api.createProfessional(values); setProfessionalEditor(false); await refreshAfterChange('Doctor creado y habilitado en agenda') }} />}
     {rolesAccount && <RolesModal account={rolesAccount} roles={roles} onClose={() => setRolesAccount(null)} onSave={async (roleCodes) => { await api.updateUserRoles(rolesAccount.id, roleCodes); setRolesAccount(null); await refreshAfterChange('Roles actualizados y sesiones anteriores revocadas') }} />}
     {statusChange && <StatusConfirmModal change={statusChange} onClose={() => setStatusChange(null)} onConfirm={async () => { await api.updateUserStatus(statusChange.account.id, statusChange.status); setStatusChange(null); await refreshAfterChange(statusChange.status === 'ACTIVE' ? 'Cuenta activada correctamente' : statusChange.status === 'LOCKED' ? 'Cuenta bloqueada y sesiones revocadas' : 'Cuenta desactivada y sesiones revocadas') }} />}
   </>
@@ -280,6 +316,68 @@ function UserEditorModal({ mode, account, roles, onClose, onSave }: { mode: 'cre
       </div>
       {error && <p className="modal-error" role="alert">{error}</p>}
       <ModalFooter onClose={onClose} saving={saving} disabled={!canSave} label={mode === 'create' ? 'Crear cuenta' : 'Guardar cambios'} />
+    </form>
+  </Modal>
+}
+
+function ProfessionalEditorModal({ specialties, onClose, onSave }: { specialties: Specialty[]; onClose: () => void; onSave: (values: ProfessionalEditorValues) => Promise<void> }) {
+  const [form, setForm] = useState({ username: '', firstName: '', lastName: '', email: '', password: '', confirmation: '', licenseNumber: '', professionalType: 'DOCTOR', specialtyIds: specialties[0] ? [specialties[0].id] : [] })
+  const [showPassword, setShowPassword] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const passwordValid = form.password.length >= 8
+  const confirmationValid = form.password === form.confirmation
+  const canSave = Boolean(form.username.trim() && form.firstName.trim() && form.lastName.trim() && form.licenseNumber.trim() && passwordValid && confirmationValid && form.specialtyIds.length > 0)
+
+  const generate = () => {
+    const password = generatePassword()
+    setForm((current) => ({ ...current, password, confirmation: password }))
+    setShowPassword(true)
+  }
+
+  const toggleSpecialty = (id: string) => {
+    setForm((current) => ({ ...current, specialtyIds: current.specialtyIds.includes(id) ? current.specialtyIds.filter((item) => item !== id) : [...current.specialtyIds, id] }))
+  }
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!canSave) return
+    setSaving(true)
+    setError('')
+    try {
+      await onSave({
+        username: form.username.trim(),
+        password: form.password,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim() || undefined,
+        licenseNumber: form.licenseNumber.trim(),
+        professionalType: form.professionalType,
+        specialtyIds: form.specialtyIds,
+      })
+    } catch (reason) {
+      setError(errorMessage(reason))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return <Modal title="Crear doctor" eyebrow="Cuenta y perfil profesional" onClose={onClose} labelledBy="professional-editor-title">
+    <form onSubmit={(event) => void submit(event)}>
+      <div className="form-grid admin-form-grid">
+        <label>Nombre de usuario<input required autoComplete="off" value={form.username} pattern="[a-z0-9._-]+" onChange={(event) => setForm({ ...form, username: event.target.value.toLowerCase().replace(/\s+/g, '') })} placeholder="nombre.apellido" /></label>
+        <label>Correo institucional <span className="optional-label">Opcional</span><input type="email" autoComplete="off" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="doctor@hospital.bo" /></label>
+        <label>Nombres<input required autoComplete="off" value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} /></label>
+        <label>Apellidos<input required autoComplete="off" value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} /></label>
+        <label>Matrícula profesional<input required autoComplete="off" value={form.licenseNumber} onChange={(event) => setForm({ ...form, licenseNumber: event.target.value.toUpperCase() })} placeholder="RM-000-UMSA" /></label>
+        <label>Tipo profesional<select value={form.professionalType} onChange={(event) => setForm({ ...form, professionalType: event.target.value })}><option value="DOCTOR">Doctor</option><option value="NURSE">Enfermería</option><option value="LAB_TECHNICIAN">Laboratorio</option><option value="PHARMACIST">Farmacia</option><option value="OTHER">Otro</option></select></label>
+        <div className="admin-form-field form-span-two"><label htmlFor="professional-password">Contraseña inicial <span className="optional-label">Mínimo 8 caracteres</span></label><span className="admin-password-input"><KeyRound aria-hidden="true" /><input id="professional-password" required type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={8} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /><button type="button" title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={() => setShowPassword((current) => !current)}>{showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}</button><button type="button" className="password-generate" onClick={generate}>Generar</button></span></div>
+        <label className="form-span-two">Confirmar contraseña<input required type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={form.confirmation} onChange={(event) => setForm({ ...form, confirmation: event.target.value })} />{!confirmationValid && <small className="field-error">Las contraseñas no coinciden.</small>}{!passwordValid && <small className="field-error">La contraseña debe tener al menos 8 caracteres.</small>}</label>
+        <fieldset className="choice-field form-span-two"><legend>Especialidades para agenda</legend><div className="check-grid admin-role-grid">{specialties.map((specialty) => <label key={specialty.id}><input type="checkbox" checked={form.specialtyIds.includes(specialty.id)} onChange={() => toggleSpecialty(specialty.id)} /><span><strong>{specialty.name}</strong><small>{specialty.description || specialty.code}</small></span></label>)}</div></fieldset>
+      </div>
+      {specialties.length === 0 && <p className="modal-error" role="alert">No hay especialidades activas. Registra datos maestros antes de crear profesionales.</p>}
+      {error && <p className="modal-error" role="alert">{error}</p>}
+      <ModalFooter onClose={onClose} saving={saving} disabled={!canSave} label="Crear doctor" />
     </form>
   </Modal>
 }
@@ -357,6 +455,10 @@ function normalize(value: string | null | undefined) {
 
 function statusLabel(status: string) {
   return ({ ACTIVE: 'Activa', INACTIVE: 'Inactiva', LOCKED: 'Bloqueada' } as Record<string, string>)[status] ?? humanize(status)
+}
+
+function professionalTypeLabel(value: string) {
+  return ({ DOCTOR: 'Doctor', NURSE: 'Enfermería', LAB_TECHNICIAN: 'Laboratorio', PHARMACIST: 'Farmacia', OTHER: 'Otro' } as Record<string, string>)[value] ?? humanize(value)
 }
 
 function permissionLabel(permission: string) {

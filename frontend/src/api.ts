@@ -287,6 +287,7 @@ export type AdminUser = { id: string; username: string; firstName: string; lastN
 export type Role = { id: string; code: string; name: string; description: string | null; active: boolean; permissions: string[] }
 export type PermissionInfo = { id: string; code: string; name: string; description: string | null }
 export type AuditEvent = { id: string; userId: string | null; username: string | null; action: string; entityType: string; entityId: string | null; origin: string | null; success: boolean; failureReason: string | null; eventAt: string }
+export type ProfessionalRegistryItem = { id: string; userId: string; username: string; displayName: string; professionalCode: string; licenseNumber: string | null; professionalType: string; status: string; specialties: string[] }
 export type Notification = { id: string; channel: string; templateCode: string; message: string; status: string; createdAt: string; sentAt: string | null; readAt: string | null }
 
 export class ApiError extends Error {
@@ -664,6 +665,14 @@ export const api = {
 
   getAuditEvents(filters: { username?: string; action?: string; entityType?: string; from?: string; to?: string } = {}) {
     return request<AuditEvent[]>(`/audit-events${queryString(filters)}`)
+  },
+
+  getProfessionalRegistry() {
+    return request<ProfessionalRegistryItem[]>('/professionals/admin')
+  },
+
+  createProfessional(payload: { username: string; password: string; firstName: string; lastName: string; email?: string; licenseNumber: string; professionalType: string; specialtyIds: string[] }) {
+    return request<ProfessionalRegistryItem>('/professionals', { method: 'POST', body: JSON.stringify(payload) })
   },
 
   getNotifications() {

@@ -2,6 +2,8 @@ package com.SIIH.proye.administration.api;
 
 import com.SIIH.proye.administration.api.AdministrationModels.AuditEventResponse;
 import com.SIIH.proye.administration.api.AdministrationModels.PermissionResponse;
+import com.SIIH.proye.administration.api.AdministrationModels.ProfessionalAdminResponse;
+import com.SIIH.proye.administration.api.AdministrationModels.ProfessionalCreateRequest;
 import com.SIIH.proye.administration.api.AdministrationModels.RoleResponse;
 import com.SIIH.proye.administration.api.AdministrationModels.UserCreateRequest;
 import com.SIIH.proye.administration.api.AdministrationModels.UserResponse;
@@ -85,6 +87,18 @@ public class AdministrationController {
     @GetMapping("/permissions")
     public List<PermissionResponse> permissions() {
         return service.permissions();
+    }
+
+    @GetMapping("/professionals/admin")
+    public List<ProfessionalAdminResponse> professionals() {
+        return service.professionals();
+    }
+
+    @PostMapping("/professionals")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProfessionalAdminResponse createProfessional(@Valid @RequestBody ProfessionalCreateRequest request,
+                                                        @AuthenticationPrincipal AuthenticatedUser actor) {
+        return service.createProfessional(request, actor);
     }
 
     @GetMapping("/audit-events")

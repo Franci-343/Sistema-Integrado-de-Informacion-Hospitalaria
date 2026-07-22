@@ -2,6 +2,8 @@ package com.SIIH.proye.administration.service;
 
 import com.SIIH.proye.administration.api.AdministrationModels.AuditEventResponse;
 import com.SIIH.proye.administration.api.AdministrationModels.PermissionResponse;
+import com.SIIH.proye.administration.api.AdministrationModels.ProfessionalAdminResponse;
+import com.SIIH.proye.administration.api.AdministrationModels.ProfessionalCreateRequest;
 import com.SIIH.proye.administration.api.AdministrationModels.RoleResponse;
 import com.SIIH.proye.administration.api.AdministrationModels.UserCreateRequest;
 import com.SIIH.proye.administration.api.AdministrationModels.UserResponse;
@@ -10,6 +12,7 @@ import com.SIIH.proye.administration.api.AdministrationModels.UserStatusRequest;
 import com.SIIH.proye.administration.api.AdministrationModels.UserStatus;
 import com.SIIH.proye.administration.api.AdministrationModels.UserUpdateRequest;
 import com.SIIH.proye.common.audit.AuditService;
+import com.SIIH.proye.common.database.CodeGenerator;
 import com.SIIH.proye.common.exception.ConflictException;
 import com.SIIH.proye.common.exception.ResourceNotFoundException;
 import com.SIIH.proye.security.AuthenticatedUser;
@@ -32,6 +35,8 @@ import java.util.UUID;
 
 @Service
 public class AdministrationService {
+
+    private static final Set<String> PROFESSIONAL_TYPES = Set.of("DOCTOR", "NURSE", "LAB_TECHNICIAN", "PHARMACIST", "OTHER");
 
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
@@ -173,6 +178,63 @@ public class AdministrationService {
     }
 
     @Transactional(readOnly = true)
+    public List<ProfessionalAdminResponse> professionals() {
+        return jdbcTemplate.query("""
+                SELECT pr.id, pr.user_id, u.username, concat_ws(' ', u.first_name, u.last_name) display_name,
+                       pr.professional_code, pr.license_number, pr.professional_type, pr.status,
+                       COALESCE(string_agg(s.name, ', ' ORDER BY s.name), '') specialties
+                FROM professional pr
+                JOIN app_user u ON u.id = pr.user_id
+                LEFT JOIN professional_specialty ps ON ps.professional_id = pr.id
+                LEFT JOIN specialty s ON s.id = ps.specialty_id
+                GROUP BY pr.id, pr.user_id, u.username, u.first_name, u.last_name
+                ORDER BY pr.status, display_name
+                """, (result, row) -> new ProfessionalAdminResponse(
+                result.getObject("id", UUID.class),
+                result.getObject("user_id", UUID.class),
+                result.getString("username"),
+                result.getString("display_name"),
+                result.getString("professional_code"),
+                result.getString("license_number"),
+                result.getString("professional_type"),
+                result.getString("status"),
+                splitSpecialties(result.getString("specialties"))));
+    }
+
+    @Transactional
+    public ProfessionalAdminResponse createProfessional(ProfessionalCreateRequest request, AuthenticatedUser actor) {
+        String professionalType = request.professionalType().trim().toUpperCase(Locale.ROOT);
+        if (!PROFESSIONAL_TYPES.contains(professionalType)) {
+            throw new ConflictException("El tipo de profesional no es valido.");
+        }
+        requireSpecialties(request.specialtyIds());
+        try {
+            UUID userId = jdbcTemplate.queryForObject("""
+                    INSERT INTO app_user (username, password_hash, first_name, last_name, email, status)
+                    VALUES (?, ?, ?, ?, ?, 'ACTIVE') RETURNING id
+                    """, UUID.class, request.username().trim().toLowerCase(Locale.ROOT),
+                    passwordEncoder.encode(request.password()), request.firstName().trim(),
+                    request.lastName().trim(), clean(request.email()));
+            replaceRoles(userId, Set.of(roleForProfessionalType(professionalType)), actor.id());
+            UUID professionalId = jdbcTemplate.queryForObject("""
+                    INSERT INTO professional (user_id, professional_code, license_number, professional_type, status)
+                    VALUES (?, ?, ?, ?, 'ACTIVE') RETURNING id
+                    """, UUID.class, userId, CodeGenerator.next("PROF"), request.licenseNumber().trim(), professionalType);
+            for (UUID specialtyId : request.specialtyIds()) {
+                jdbcTemplate.update("""
+                        INSERT INTO professional_specialty (professional_id, specialty_id, is_primary)
+                        VALUES (?, ?, ?) ON CONFLICT DO NOTHING
+                        """, professionalId, specialtyId, specialtyId.equals(request.specialtyIds().iterator().next()));
+            }
+            auditService.record("CREATE", "PROFESSIONAL", professionalId, actor.id(), null,
+                    Map.of("username", request.username().trim().toLowerCase(Locale.ROOT), "professionalType", professionalType));
+            return professional(professionalId);
+        } catch (DataIntegrityViolationException exception) {
+            throw new ConflictException("El usuario, correo o matricula profesional ya esta registrado.");
+        }
+    }
+
+    @Transactional(readOnly = true)
     public List<AuditEventResponse> audit(String username, String action, String entityType,
                                           OffsetDateTime from, OffsetDateTime to) {
         return jdbcTemplate.query("""
@@ -208,9 +270,54 @@ public class AdministrationService {
         if (count != roles.size()) throw new ConflictException("Uno o mas roles no existen o estan inactivos.");
     }
 
+    private void requireSpecialties(Set<UUID> specialtyIds) {
+        int count = namedJdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM specialty WHERE id IN (:ids) AND active
+                """, new MapSqlParameterSource("ids", specialtyIds), Integer.class);
+        if (count != specialtyIds.size()) throw new ConflictException("Una o mas especialidades no existen o estan inactivas.");
+    }
+
+    private ProfessionalAdminResponse professional(UUID id) {
+        return jdbcTemplate.query("""
+                SELECT pr.id, pr.user_id, u.username, concat_ws(' ', u.first_name, u.last_name) display_name,
+                       pr.professional_code, pr.license_number, pr.professional_type, pr.status,
+                       COALESCE(string_agg(s.name, ', ' ORDER BY s.name), '') specialties
+                FROM professional pr
+                JOIN app_user u ON u.id = pr.user_id
+                LEFT JOIN professional_specialty ps ON ps.professional_id = pr.id
+                LEFT JOIN specialty s ON s.id = ps.specialty_id
+                WHERE pr.id = ?
+                GROUP BY pr.id, pr.user_id, u.username, u.first_name, u.last_name
+                """, (result, row) -> new ProfessionalAdminResponse(
+                result.getObject("id", UUID.class),
+                result.getObject("user_id", UUID.class),
+                result.getString("username"),
+                result.getString("display_name"),
+                result.getString("professional_code"),
+                result.getString("license_number"),
+                result.getString("professional_type"),
+                result.getString("status"),
+                splitSpecialties(result.getString("specialties"))), id).stream().findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro el profesional."));
+    }
+
+    private static String roleForProfessionalType(String professionalType) {
+        return switch (professionalType) {
+            case "NURSE" -> "NURSE";
+            case "LAB_TECHNICIAN" -> "LAB_TECHNICIAN";
+            case "PHARMACIST" -> "PHARMACIST";
+            default -> "DOCTOR";
+        };
+    }
+
     private static Set<String> normalizeRoles(Set<String> roles) {
         return roles.stream().map(value -> value.trim().toUpperCase(Locale.ROOT))
                 .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
+    private static List<String> splitSpecialties(String specialties) {
+        if (specialties == null || specialties.isBlank()) return List.of();
+        return List.of(specialties.split(", "));
     }
 
     private static UserRow mapUser(ResultSet result, int row) throws SQLException {
