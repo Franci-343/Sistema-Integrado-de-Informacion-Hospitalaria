@@ -13,6 +13,7 @@ test('recorre el SIIH contra el backend real', async ({ page }) => {
   })
 
   await page.goto('/acceso')
+  await page.getByRole('tab', { name: 'Entorno de prueba' }).click()
   await page.getByLabel('Perfil de demostración').selectOption('admin')
   await page.getByRole('button', { name: 'Ingresar al sistema' }).click()
   await expect(page).toHaveURL(/\/app\/inicio$/)
@@ -66,6 +67,7 @@ test('dirección navega sus vistas de lectura sin solicitudes prohibidas', async
   })
 
   await page.goto('/acceso')
+  await page.getByRole('tab', { name: 'Entorno de prueba' }).click()
   await page.getByLabel('Perfil de demostración').selectOption('direccion')
   await page.getByRole('button', { name: 'Ingresar al sistema' }).click()
   await expect(page).toHaveURL(/\/app\/inicio$/)

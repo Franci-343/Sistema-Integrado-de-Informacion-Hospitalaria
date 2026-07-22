@@ -248,3 +248,135 @@ h1 { color: var(--ink); font-size: 31px; line-height: 1.2; }
 @media (max-width: 430px) {
   .operation-summary { grid-template-columns: 1fr; }
 }
+
+/* Security administration */
+.row-action { min-height: 28px; display: inline-grid; place-items: center; border-radius: 4px; }
+.row-action svg { width: 15px; height: 15px; }
+.row-action:hover { background: #eef5f6; }
+.search-field button svg { width: 14px; height: 14px; }
+.close-button { display: grid; place-items: center; border-radius: 4px; }
+.close-button svg { width: 18px; height: 18px; }
+.close-button:hover { color: #2b6673; background: #eef4f5; }
+.optional-label { margin-left: 4px; color: #9aa9af; font-size: 9px; font-weight: 500; }
+.cancel-appointment-copy { display: grid; gap: 5px; padding: 18px 24px 0; color: #71838c; font-size: 10px; }
+.cancel-appointment-copy strong { color: #314f5c; font-size: 13px; }
+.cancel-appointment-copy p { margin: 8px 0 0; padding: 10px 12px; border-left: 3px solid #d88f7b; color: #7b5b4f; background: #fff7f3; line-height: 1.5; }
+.patient-modal { width: min(620px, 100%); max-height: calc(100svh - 40px); overflow-y: auto; }
+.duplicate-review { padding: 20px 24px 6px; }
+.duplicate-review > header { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-left: 3px solid #d49153; color: #7d5e3f; background: #fff8ec; }
+.duplicate-review > header > svg { width: 18px; flex: 0 0 auto; }
+.duplicate-review > header strong, .duplicate-review > header span { display: block; }
+.duplicate-review > header strong { font-size: 11px; }
+.duplicate-review > header span { margin-top: 4px; font-size: 9px; }
+.duplicate-list { display: grid; margin-top: 12px; border: 1px solid #e1e8ea; border-radius: 6px; overflow: hidden; }
+.duplicate-list > div { min-height: 62px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #e8edef; }
+.duplicate-list > div:last-child { border-bottom: 0; }
+.duplicate-list strong, .duplicate-list small { display: block; }
+.duplicate-list strong { color: #35525e; font-size: 10px; }
+.duplicate-list small { margin-top: 4px; color: #85969d; font-size: 9px; }
+.duplicate-review > p { margin: 12px 0; color: #7c8d94; font-size: 9px; line-height: 1.5; }
+.duplicate-footer { justify-content: space-between; }
+
+.admin-heading { margin-bottom: 20px; }
+.admin-error { margin-bottom: 16px; }
+.admin-summary { margin-bottom: 18px; }
+.admin-metric-icon { position: absolute; top: 50%; left: 15px; width: 25px; height: 25px; display: grid !important; place-items: center; transform: translateY(-50%); border-radius: 5px; color: #2f737b !important; background: #e7f3f3; }
+.admin-metric-icon svg { width: 14px; height: 14px; }
+.admin-console { overflow: hidden; }
+.admin-tabs { min-height: 54px; display: flex; align-items: end; gap: 24px; padding: 0 20px; border-bottom: 1px solid #e7edef; background: #fbfcfc; overflow-x: auto; }
+.admin-tabs button { min-height: 54px; flex: 0 0 auto; padding: 0 2px; border: 0; border-bottom: 2px solid transparent; color: #758790; background: transparent; font-size: 10px; font-weight: 700; }
+.admin-tabs button.selected { border-bottom-color: #2b7c7d; color: #214f59; }
+.admin-tab-panel { min-width: 0; }
+.admin-toolbar { min-height: 68px; display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid #edf1f2; }
+.admin-search { width: min(430px, 100%); }
+.admin-search button svg { width: 14px; height: 14px; }
+.admin-select { display: flex; align-items: center; gap: 8px; color: #829097; font-size: 9px; font-weight: 700; }
+.admin-select select { min-width: 120px; height: 34px; padding: 0 9px; border: 1px solid #dce5e8; border-radius: 4px; color: #48616c; background: #fff; font-size: 10px; }
+.admin-result-count { margin-left: auto; color: #91a0a6; font-size: 9px; }
+.admin-table table { min-width: 980px; }
+.admin-table td { vertical-align: middle; }
+.admin-account { min-width: 190px; display: flex; align-items: center; gap: 9px; }
+.admin-account > span:last-child { min-width: 0; }
+.admin-account strong, .admin-account small { display: block; }
+.admin-account strong { max-width: 190px; overflow: hidden; color: #304c59; text-overflow: ellipsis; }
+.admin-account small { margin-top: 3px; color: #94a3aa; }
+.admin-cell-main, .admin-cell-detail { display: block; }
+.admin-cell-main { color: #4f6874; }
+.admin-cell-detail { margin-top: 4px; color: #96a5ab; font-size: 8px; }
+.warning-text { max-width: 190px; color: #a45d46; white-space: normal; }
+.entity-id { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.role-tags { max-width: 280px; display: flex; flex-wrap: wrap; gap: 4px; white-space: normal; }
+.role-tags > span { padding: 4px 6px; border: 1px solid #dce8e7; border-radius: 4px; color: #376c70; background: #f1f8f7; font-size: 8px; font-weight: 700; }
+.admin-row-actions { display: flex; justify-content: flex-end; gap: 3px; }
+.admin-row-actions button { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 4px; color: #71868e; background: transparent; }
+.admin-row-actions button:hover { color: #245f69; background: #edf4f5; }
+.admin-row-actions button:nth-last-child(1):hover { color: #984f43; background: #fff0ec; }
+.admin-row-actions svg { width: 14px; height: 14px; }
+.admin-pagination { min-height: 49px; }
+.admin-section-heading { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 18px; border-bottom: 1px solid #edf1f2; }
+.admin-section-heading h2 { margin: 0; color: #304e5a; font-size: 13px; }
+.admin-section-heading p { margin: 4px 0 0; color: #8999a0; font-size: 10px; }
+.admin-section-heading > span { color: #71878e; font-size: 9px; font-weight: 700; }
+.role-table table { min-width: 820px; }
+.role-table td:nth-child(2) { min-width: 270px; white-space: normal; line-height: 1.5; }
+.permission-details { min-width: 140px; }
+.permission-details summary { color: #2d6c74; font-size: 9px; font-weight: 700; cursor: pointer; }
+.permission-details > div { max-width: 380px; display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; white-space: normal; }
+.permission-details span { padding: 4px 6px; border-radius: 4px; color: #5a7079; background: #f1f4f5; font-size: 8px; }
+.audit-filters { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 12px; padding: 16px 18px; border-bottom: 1px solid #eaf0f1; background: #fbfcfc; }
+.audit-filters label { display: grid; gap: 6px; color: #677c85; font-size: 9px; font-weight: 700; }
+.audit-filters input, .audit-filters select { width: 100%; height: 34px; padding: 0 9px; border: 1px solid #dae4e7; border-radius: 4px; color: #405d69; background: #fff; font-size: 10px; }
+.audit-filter-actions { display: flex; align-items: end; justify-content: flex-end; gap: 7px; }
+.audit-table table { min-width: 930px; }
+.audit-result { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 700; }
+.audit-result svg { width: 13px; height: 13px; }
+.audit-result.success { color: #39795e; }
+.audit-result.failure { color: #a45144; }
+
+.admin-modal { width: min(690px, 100%); }
+.admin-form-field { display: grid; gap: 7px; color: #607580; font-size: 10px; font-weight: 700; }
+.admin-form-field > small { color: #8e9da3; font-size: 8px; font-weight: 500; line-height: 1.4; }
+.admin-form-grid label > small { color: #8e9da3; font-size: 8px; font-weight: 500; line-height: 1.4; }
+.admin-form-grid .field-error { color: #a65043; }
+.admin-password-input { min-width: 0; display: flex; align-items: center; border: 1px solid #dbe5e9; border-radius: 4px; background: #fff; }
+.admin-password-input:focus-within { border-color: #5a9697; box-shadow: 0 0 0 3px rgba(50, 127, 129, .1); }
+.admin-password-input > svg { width: 15px; flex: 0 0 auto; margin-left: 9px; color: #81959c; }
+.admin-password-input input { min-width: 0; flex: 1; border: 0; box-shadow: none; outline: 0; }
+.admin-password-input button { height: 30px; display: grid; place-items: center; flex: 0 0 auto; border: 0; color: #607983; background: transparent; }
+.admin-password-input button:not(.password-generate) { width: 31px; }
+.admin-password-input button svg { width: 15px; height: 15px; }
+.admin-password-input .password-generate { margin-right: 4px; padding: 0 8px; border-left: 1px solid #e2e8ea; font-size: 9px; font-weight: 700; }
+.admin-role-grid label { height: auto; min-height: 56px; }
+.admin-role-grid small { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.35; }
+.form-notice { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-left: 3px solid #64a09d; color: #537078; background: #f0f8f7; font-size: 9px; line-height: 1.5; }
+.form-notice svg { width: 15px; flex: 0 0 auto; }
+.confirm-account { display: flex; align-items: center; gap: 10px; margin: 22px 24px 0; padding: 12px; border: 1px solid #e3eaec; border-radius: 6px; background: #fafcfc; }
+.confirm-account strong, .confirm-account small { display: block; }
+.confirm-account strong { color: #34515e; font-size: 11px; }
+.confirm-account small { margin-top: 3px; color: #92a1a7; font-size: 9px; }
+.confirm-copy { margin: 15px 24px 22px; color: #617781; font-size: 10px; line-height: 1.55; }
+
+@media (max-width: 980px) {
+  .audit-filters { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+}
+
+@media (max-width: 800px) {
+  .admin-tabs { gap: 18px; padding-inline: 16px; }
+  .admin-toolbar { align-items: stretch; flex-direction: column; }
+  .admin-search { width: 100%; }
+  .admin-select { justify-content: space-between; }
+  .admin-select select { flex: 1; }
+  .admin-result-count { margin-left: 0; }
+  .admin-section-heading { align-items: flex-start; flex-direction: column; }
+  .admin-form-grid { grid-template-columns: 1fr; }
+  .admin-password-input { flex-wrap: wrap; }
+}
+
+@media (max-width: 520px) {
+  .audit-filters { grid-template-columns: 1fr; }
+  .audit-filter-actions { justify-content: stretch; }
+  .audit-filter-actions .button { flex: 1; }
+  .admin-tabs { gap: 14px; }
+  .admin-tabs button { font-size: 9px; }
+  .confirm-account, .confirm-copy { margin-inline: 18px; }
+}

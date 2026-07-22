@@ -39,10 +39,5 @@ React + TypeScript + Vite. Primera version web responsiva; PWA del paciente en u
 9. Reportes.
 10. Usuarios/roles/auditoria.
 
-## Pruebas
-
-- React Testing Library para componentes y reglas de presentacion.
-- Playwright para flujos E2E.
-- No usar datos reales.
 
 Leer `docs/ai-context/03`, `04`, `07`, `08`, `10`, `13` y `16` antes de implementar.

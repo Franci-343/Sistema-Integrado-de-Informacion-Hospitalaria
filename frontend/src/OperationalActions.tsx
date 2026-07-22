@@ -1,8 +1,7 @@
-import { CircleDollarSign, FilePlus2, PackagePlus, Pill, Plus, RefreshCw, ShieldCheck, TestTube2, Truck, UserPlus, X } from 'lucide-react'
+import { CircleDollarSign, FilePlus2, PackagePlus, Pill, Plus, RefreshCw, TestTube2, Truck, X } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import {
   api,
-  type AdminUser,
   type BatchStock,
   type Charge,
   type Consultation,
@@ -14,19 +13,17 @@ import {
   type Medication,
   type Patient,
   type Prescription,
-  type Role,
   type ServiceItem,
 } from './api'
 import { useAuth } from './auth/auth-context'
 import { PERMISSIONS } from './auth/permissions'
 import type { OperationalModule } from './OperationalView'
 
-export function OperationalActions({ module, onChanged, onNotify }: { module: OperationalModule; onChanged: () => Promise<void>; onNotify: (message: string) => void }) {
+export function OperationalActions({ module, onChanged, onNotify }: { module: Exclude<OperationalModule, 'administracion'>; onChanged: () => Promise<void>; onNotify: (message: string) => void }) {
   if (module === 'laboratorio') return <LaboratoryActions onChanged={onChanged} onNotify={onNotify} />
   if (module === 'farmacia') return <PharmacyActions onChanged={onChanged} onNotify={onNotify} />
   if (module === 'inventario') return <InventoryActions onChanged={onChanged} onNotify={onNotify} />
   if (module === 'facturacion') return <BillingActions onChanged={onChanged} onNotify={onNotify} />
-  if (module === 'administracion') return <AdministrationActions onChanged={onChanged} onNotify={onNotify} />
   return null
 }
 
@@ -278,41 +275,6 @@ function PaymentModal({ invoice, onClose, onSave }: { invoice: Invoice; onClose:
   const [amount, setAmount] = useState(String(invoice.balance)); const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'TRANSFER' | 'QR' | 'OTHER'>('CASH'); const [saving, setSaving] = useState(false); const [error, setError] = useState('')
   const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { await onSave({ invoiceId: invoice.id, amount: Number(amount), paymentMethod, idempotencyKey: crypto.randomUUID() }) } catch (reason) { setError(errorMessage(reason)) } finally { setSaving(false) } }
   return <ActionModal title={`Cobrar ${invoice.invoiceCode}`} eyebrow={`${invoice.patientName} · saldo Bs ${invoice.balance.toFixed(2)}`} onClose={onClose}><form onSubmit={(event) => void submit(event)}><div className="form-grid"><TextField label="Monto" type="number" value={amount} onChange={setAmount} /><SelectField label="Método" value={paymentMethod} onChange={(value) => setPaymentMethod(value as typeof paymentMethod)} options={[{ value: 'CASH', label: 'Efectivo' }, { value: 'CARD', label: 'Tarjeta' }, { value: 'TRANSFER', label: 'Transferencia' }, { value: 'QR', label: 'QR' }, { value: 'OTHER', label: 'Otro' }]} /></div>{error && <ModalError message={error} />}<ModalFooter onClose={onClose} saving={saving} label="Confirmar pago" disabled={Number(amount) <= 0 || Number(amount) > invoice.balance} /></form></ActionModal>
-}
-
-function AdministrationActions({ onChanged, onNotify }: ActionProps) {
-  const { hasPermission, user } = useAuth()
-  const canWrite = hasPermission(PERMISSIONS.ADMIN_WRITE)
-  const [users, setUsers] = useState<AdminUser[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
-  const [modal, setModal] = useState<'user' | 'roles' | null>(null)
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState('')
-  const load = useCallback(async () => { try { const [userList, roleList] = await Promise.all([api.getUsers(), api.getRoles()]); setUsers(userList); setRoles(roleList); setError('') } catch (reason) { setError(errorMessage(reason)) } }, [])
-  useEffect(() => { void load() }, [load])
-  const refreshAll = async (message: string) => { await Promise.all([load(), onChanged()]); onNotify(message) }
-  const toggleStatus = async (account: AdminUser) => { setBusy(account.id); try { await api.updateUserStatus(account.id, account.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'); await refreshAll('Estado de usuario actualizado') } catch (reason) { setError(errorMessage(reason)) } finally { setBusy('') } }
-  if (!canWrite) return null
-  return <>
-    <WorkflowPanel icon={<ShieldCheck />} title="Gestión de accesos" subtitle="Cuentas, estados y roles efectivos" actions={<button type="button" className="button button-primary" onClick={() => setModal('user')}><UserPlus aria-hidden="true" /> Nuevo usuario</button>}>
-      {error && <InlineError message={error} />}<div className="workflow-list">{users.slice(0, 8).map((account) => <div className="workflow-row" key={account.id}><span><strong>{account.displayName} · @{account.username}</strong><small>{account.roles.join(', ') || 'Sin rol'}</small></span><Status value={account.status} />{account.id !== user?.id && <><button type="button" className="button button-secondary" onClick={() => { setSelectedUser(account); setModal('roles') }}>Roles</button><button type="button" className={account.status === 'ACTIVE' ? 'button button-danger' : 'button button-secondary'} disabled={busy === account.id} onClick={() => void toggleStatus(account)}>{account.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}</button></>}</div>)}</div>
-    </WorkflowPanel>
-    {modal === 'user' && <UserModal roles={roles} onClose={() => setModal(null)} onSave={async (payload) => { await api.createUser(payload); setModal(null); await refreshAll('Usuario creado') }} />}
-    {modal === 'roles' && selectedUser && <RolesModal account={selectedUser} roles={roles} onClose={() => setModal(null)} onSave={async (roleCodes) => { await api.updateUserRoles(selectedUser.id, roleCodes); setModal(null); await refreshAll('Roles actualizados') }} />}
-  </>
-}
-
-function UserModal({ roles, onClose, onSave }: { roles: Role[]; onClose: () => void; onSave: (payload: { username: string; password: string; firstName: string; lastName: string; email?: string; roleCodes: string[] }) => Promise<void> }) {
-  const [form, setForm] = useState({ username: '', password: '', firstName: '', lastName: '', email: '', roleCode: roles[0]?.code ?? '' }); const [saving, setSaving] = useState(false); const [error, setError] = useState('')
-  const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { await onSave({ username: form.username, password: form.password, firstName: form.firstName, lastName: form.lastName, email: form.email || undefined, roleCodes: [form.roleCode] }) } catch (reason) { setError(errorMessage(reason)) } finally { setSaving(false) } }
-  return <ActionModal title="Crear usuario" eyebrow="Administración de acceso" onClose={onClose}><form onSubmit={(event) => void submit(event)}><div className="form-grid"><TextField label="Usuario" value={form.username} onChange={(value) => setForm({ ...form, username: value })} /><TextField label="Contraseña temporal" type="password" value={form.password} onChange={(value) => setForm({ ...form, password: value })} /><TextField label="Nombres" value={form.firstName} onChange={(value) => setForm({ ...form, firstName: value })} /><TextField label="Apellidos" value={form.lastName} onChange={(value) => setForm({ ...form, lastName: value })} /><TextField label="Correo" type="email" value={form.email} onChange={(value) => setForm({ ...form, email: value })} /><SelectField label="Rol inicial" value={form.roleCode} onChange={(value) => setForm({ ...form, roleCode: value })} options={roles.map((role) => ({ value: role.code, label: role.name }))} /></div>{error && <ModalError message={error} />}<ModalFooter onClose={onClose} saving={saving} label="Crear usuario" disabled={!form.username.trim() || form.password.length < 8 || !form.firstName.trim() || !form.lastName.trim() || !form.roleCode} /></form></ActionModal>
-}
-
-function RolesModal({ account, roles, onClose, onSave }: { account: AdminUser; roles: Role[]; onClose: () => void; onSave: (codes: string[]) => Promise<void> }) {
-  const [selected, setSelected] = useState(account.roles); const [saving, setSaving] = useState(false); const [error, setError] = useState('')
-  const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { await onSave(selected) } catch (reason) { setError(errorMessage(reason)) } finally { setSaving(false) } }
-  return <ActionModal title={`Roles de ${account.displayName}`} eyebrow={`@${account.username}`} onClose={onClose}><form onSubmit={(event) => void submit(event)}><div className="form-grid"><fieldset className="choice-field form-span-two"><legend>Roles efectivos</legend><div className="check-grid">{roles.filter((role) => role.active).map((role) => <label key={role.code}><input type="checkbox" checked={selected.includes(role.code)} onChange={() => setSelected((current) => current.includes(role.code) ? current.filter((code) => code !== role.code) : [...current, role.code])} /><span><strong>{role.name}</strong><small>{role.permissions.length} permisos</small></span></label>)}</div></fieldset></div>{error && <ModalError message={error} />}<ModalFooter onClose={onClose} saving={saving} label="Guardar roles" disabled={selected.length === 0} /></form></ActionModal>
 }
 
 type ActionProps = { onChanged: () => Promise<void>; onNotify: (message: string) => void }

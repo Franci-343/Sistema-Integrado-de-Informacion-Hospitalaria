@@ -285,6 +285,7 @@ export type Invoice = { id: string; invoiceCode: string; patientId: string; pati
 
 export type AdminUser = { id: string; username: string; firstName: string; lastName: string; displayName: string; email: string | null; status: string; failedLoginAttempts: number; lockedUntil: string | null; lastLoginAt: string | null; createdAt: string; roles: string[]; permissions: string[] }
 export type Role = { id: string; code: string; name: string; description: string | null; active: boolean; permissions: string[] }
+export type PermissionInfo = { id: string; code: string; name: string; description: string | null }
 export type AuditEvent = { id: string; userId: string | null; username: string | null; action: string; entityType: string; entityId: string | null; origin: string | null; success: boolean; failureReason: string | null; eventAt: string }
 export type Notification = { id: string; channel: string; templateCode: string; message: string; status: string; createdAt: string; sentAt: string | null; readAt: string | null }
 
@@ -434,8 +435,8 @@ export const api = {
     return request<Specialty[]>('/specialties')
   },
 
-  getProfessionals() {
-    return request<Professional[]>('/professionals')
+  getProfessionals(specialtyId?: string) {
+    return request<Professional[]>(`/professionals${queryString({ specialtyId })}`)
   },
 
   getAppointments(page = 0, size = 50, filters: { from?: string; to?: string; status?: AppointmentStatus } = {}) {
@@ -633,8 +634,16 @@ export const api = {
     return request<AdminUser[]>(`/users${queryString({ search, status })}`)
   },
 
+  getUser(id: string) {
+    return request<AdminUser>(`/users/${id}`)
+  },
+
   createUser(payload: { username: string; password: string; firstName: string; lastName: string; email?: string; roleCodes: string[] }) {
     return request<AdminUser>('/users', { method: 'POST', body: JSON.stringify(payload) })
+  },
+
+  updateUser(id: string, payload: { firstName: string; lastName: string; email?: string; newPassword?: string }) {
+    return request<AdminUser>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
   },
 
   updateUserStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'LOCKED') {
@@ -649,8 +658,12 @@ export const api = {
     return request<Role[]>('/roles')
   },
 
-  getAuditEvents() {
-    return request<AuditEvent[]>('/audit-events')
+  getPermissions() {
+    return request<PermissionInfo[]>('/permissions')
+  },
+
+  getAuditEvents(filters: { username?: string; action?: string; entityType?: string; from?: string; to?: string } = {}) {
+    return request<AuditEvent[]>(`/audit-events${queryString(filters)}`)
   },
 
   getNotifications() {

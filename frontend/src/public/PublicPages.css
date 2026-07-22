@@ -313,14 +313,18 @@
 .login-back:hover { color: #1d5e68; }
 .login-back svg { width: 15px; }
 
-.login-heading { margin: 54px 0 30px; }
+.login-heading { margin: 42px 0 24px; }
 .login-security { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 17px; color: #26766e; font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .login-security svg { width: 15px; }
 .login-heading h2 { margin: 0; color: #1b3741; font: 800 30px/1.2 Manrope, sans-serif; }
 .login-heading p { margin: 10px 0 0; color: #7c8e95; font-size: 13px; }
 
+.login-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-bottom: 22px; padding: 3px; border: 1px solid #dfe7e9; border-radius: 6px; background: #f4f7f7; }
+.login-mode button { min-height: 36px; padding: 5px 8px; border: 0; border-radius: 4px; color: #70838b; background: transparent; font-size: 10px; font-weight: 800; }
+.login-mode button.selected { color: #224f59; background: #fff; box-shadow: 0 1px 4px rgba(29, 61, 72, .09); }
 .login-form { display: grid; gap: 17px; }
-.login-form > label:not(.remember-field) { display: grid; gap: 7px; color: #506a74; font-size: 11px; font-weight: 800; }
+.login-field { display: grid; gap: 7px; }
+.login-field > label { color: #506a74; font-size: 11px; font-weight: 800; }
 .login-form select,
 .login-input {
   width: 100%;
@@ -342,13 +346,38 @@
 
 .remember-field { display: flex; align-items: center; gap: 9px; color: #647a83; font-size: 11px; cursor: pointer; }
 .remember-field input { width: 15px; height: 15px; accent-color: #23786e; }
+.login-options { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.access-help-link { padding: 0; border: 0; color: #296d73; background: transparent; font-size: 10px; font-weight: 800; text-align: right; }
+.access-help-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.caps-lock-warning { color: #9d6246; font-size: 9px; font-weight: 600; }
 .login-submit { min-height: 46px; border: 0; border-radius: 5px; color: #fff; background: #173e49; font-size: 12px; font-weight: 800; }
 .login-submit:hover { background: #245663; }
 .login-submit:disabled { opacity: .62; cursor: wait; }
-.login-error { padding: 11px 12px; border-left: 3px solid #bc5848; color: #8d443a; background: #fff4f1; font-size: 11px; }
-.demo-note { margin-top: 23px; padding: 12px 14px; border: 1px solid #e0e7e8; border-radius: 5px; color: #6f8188; background: #f8fafa; font-size: 11px; }
+.login-error { display: grid; gap: 3px; padding: 11px 12px; border-left: 3px solid #bc5848; color: #8d443a; background: #fff4f1; font-size: 10px; line-height: 1.45; }
+.login-error strong { font-size: 11px; }
+.demo-note { display: flex; align-items: flex-start; gap: 9px; margin-top: 23px; padding: 12px 14px; border: 1px solid #dbe7e6; border-radius: 5px; color: #61787f; background: #f3f8f7; font-size: 10px; line-height: 1.5; }
+.demo-note > svg { width: 16px; flex: 0 0 auto; color: #347a77; }
 .demo-note code { margin-left: 4px; color: #245861; font-weight: 800; }
 .login-legal { margin: 16px 0 0; color: #9aa7ac; font-size: 10px; line-height: 1.5; }
+
+.access-help-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(8, 31, 40, .52); }
+.access-help-dialog { width: min(520px, 100%); max-height: calc(100svh - 40px); overflow-y: auto; border-radius: 8px; background: #fff; box-shadow: 0 24px 64px rgba(8, 31, 40, .25); }
+.access-help-dialog header { min-height: 76px; display: grid; grid-template-columns: 38px minmax(0, 1fr) 30px; align-items: center; gap: 11px; padding: 14px 18px; border-bottom: 1px solid #e7edef; }
+.access-help-dialog header > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 6px; color: #26736f; background: #eaf5f3; }
+.access-help-dialog header > span svg { width: 20px; }
+.access-help-dialog header small { color: #3d7b78; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.access-help-dialog h2 { margin: 3px 0 0; color: #213e48; font: 800 18px/1.2 Manrope, sans-serif; }
+.access-help-dialog header button { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 4px; color: #71868e; background: transparent; }
+.access-help-dialog header button:hover { color: #285e68; background: #eef4f5; }
+.access-help-dialog header button svg { width: 17px; }
+.access-help-content { display: grid; padding: 8px 22px; }
+.access-help-content > div { display: flex; align-items: flex-start; gap: 13px; padding: 18px 0; border-bottom: 1px solid #edf1f2; }
+.access-help-content > div:last-child { border-bottom: 0; }
+.access-help-content > div > svg { width: 18px; flex: 0 0 auto; color: #467d82; }
+.access-help-content strong { color: #36525d; font-size: 11px; }
+.access-help-content p { margin: 6px 0 0; color: #71848c; font-size: 10px; line-height: 1.6; }
+.access-help-dialog footer { display: flex; justify-content: flex-end; padding: 14px 18px; border-top: 1px solid #e7edef; background: #fafcfc; }
+.access-help-dialog footer .login-submit { min-width: 118px; min-height: 38px; }
 
 @media (max-width: 980px) {
   .landing-hero h1 { font-size: 44px; }
@@ -394,4 +423,8 @@
   .landing-signal span:nth-child(2) { display: none; }
   .trust-section { grid-template-columns: 1fr; }
   .trust-icon { width: 52px; height: 52px; }
+  .login-options { align-items: flex-start; flex-direction: column; }
+  .access-help-link { text-align: left; }
+  .access-help-dialog { max-height: calc(100svh - 24px); }
+  .access-help-backdrop { padding: 12px; }
 }
