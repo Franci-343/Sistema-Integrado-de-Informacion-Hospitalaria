@@ -1,65 +1,265 @@
 # Frontend SIIH
 
-Interfaz web del Sistema Integrado de Información Hospitalaria para el caso académico del Hospital Universitario San Andrés.
+Interfaz web del Sistema Integrado de Informacion Hospitalaria para el caso academico del Hospital Universitario San Andres.
 
-## Funcionalidad
+## Que necesitas para ejecutarlo
 
-- Landing pública y acceso institucional conectado a `/auth/login`, separado del entorno de demostración.
-- Sesiones JWT con refresh token rotatorio, persistencia opcional, cierre remoto y permisos por rol.
-- Dashboard, pacientes, agenda, historia clínica y consultas conectados al backend.
-- Triaje: prioridad, signos vitales y seguimiento de evaluaciones.
-- Hospitalización: camas, ingresos, notas de enfermería y altas.
-- Laboratorio: órdenes, recepción de muestras, resultados, validación y publicación.
-- Farmacia: recetas, dispensación por lote y descuento atómico de stock.
-- Inventario: lotes, entradas, salidas, transferencias y ajustes.
-- Facturación: cargos, facturas, emisión y pagos.
-- Administración: alta y edición de cuentas, restablecimiento administrativo, estados, roles múltiples y auditoría filtrable.
-- Notificaciones internas, reportes y exportación CSV según permisos.
-- Revisión contextual de posibles pacientes duplicados antes de crear una ficha.
-- Selección de profesionales por especialidad y confirmación trazable al cancelar citas.
+Para levantar el frontend necesitas:
 
-## Identidad y cuentas
+- Node.js LTS.
+- npm, que normalmente viene incluido con Node.js.
+- El backend activo, por defecto en `http://localhost:8080/api/v1`.
 
-El SIIH no ofrece registro público. De acuerdo con `RF-SEG-002` y `UC-08`, un administrador autorizado crea la cuenta institucional, asigna los roles mínimos y gestiona bloqueos o restablecimientos. La recuperación de autoservicio permanece deshabilitada hasta que el hospital defina su política de sesiones, MFA y recuperación.
-
-La interfaz cubre `RF-SEG-001`, `RF-SEG-002`, `RF-SEG-004`, `RF-PAC-002` y `RN-CIT-003` con autenticación, administración de acceso, filtros de auditoría, revisión de duplicados y cancelación con motivo.
-
-## Desarrollo
-
-Con PostgreSQL y el backend activos en `localhost:8080`:
+Puedes comprobar si ya tienes Node.js y npm:
 
 ```bash
+node --version
+npm --version
+```
+
+Si esos comandos fallan, instala Node.js antes de continuar.
+
+## Instalar Node.js si no lo tienes
+
+### Windows
+
+Con PowerShell:
+
+```powershell
+winget install --id OpenJS.NodeJS.LTS -e
+```
+
+Cierra y vuelve a abrir PowerShell. Luego verifica:
+
+```powershell
+node --version
+npm --version
+```
+
+### Linux
+
+En Ubuntu/Debian:
+
+```bash
+sudo apt update
+sudo apt install nodejs npm
+```
+
+Verifica:
+
+```bash
+node --version
+npm --version
+```
+
+Si tu distribucion instala una version muy antigua de Node.js, usa NodeSource, nvm o el instalador recomendado para tu sistema.
+
+### macOS
+
+Con Homebrew:
+
+```bash
+brew install node
+```
+
+Verifica:
+
+```bash
+node --version
+npm --version
+```
+
+## Preparar el backend
+
+Antes de iniciar el frontend, el backend debe estar corriendo. Desde la raiz del proyecto puedes usar:
+
+```bash
+cd backend
+docker compose up -d postgres
+SPRING_PROFILES_ACTIVE=local ./mvnw spring-boot:run
+```
+
+En Windows PowerShell:
+
+```powershell
+cd backend
+docker compose up -d postgres
+$env:SPRING_PROFILES_ACTIVE="local"
+.\mvnw.cmd spring-boot:run
+```
+
+La API debe quedar disponible en:
+
+```text
+http://localhost:8080/api/v1
+```
+
+Si necesitas instrucciones completas del backend, revisa el `Readme.md` de la raiz del proyecto.
+
+## Instalar y ejecutar el frontend
+
+Desde la raiz del proyecto:
+
+```bash
+cd frontend
 npm install
 npm run dev
 ```
 
-La URL de la API puede cambiarse con `VITE_API_URL`:
+Vite mostrara una URL parecida a:
 
-```bash
+```text
+http://localhost:5173
+```
+
+Abre esa URL en el navegador.
+
+## Configurar la URL del backend
+
+El frontend usa por defecto:
+
+```text
+http://localhost:8080/api/v1
+```
+
+Si el backend esta en otro puerto o servidor, crea `frontend/.env.local`:
+
+```text
 VITE_API_URL=http://localhost:8080/api/v1
 ```
 
-## Acceso académico
+Ejemplo con backend en puerto `8081`:
 
-La clave común es `password`.
+```text
+VITE_API_URL=http://localhost:8081/api/v1
+```
+
+Despues reinicia `npm run dev`.
+
+## Funcionalidad
+
+- Landing publica y acceso institucional conectado a `/auth/login`.
+- Sesiones JWT con refresh token, persistencia opcional, cierre remoto y permisos por rol.
+- Dashboard, pacientes, agenda, historia clinica y consultas conectados al backend.
+- Triaje, hospitalizacion, laboratorio, farmacia, inventario y facturacion.
+- Administracion de cuentas, roles, auditoria y notificaciones internas.
+- Revision contextual de posibles pacientes duplicados.
+- Seleccion de profesionales por especialidad y cancelacion de citas con motivo.
+
+## Acceso academico
+
+La clave comun es:
+
+```text
+password
+```
 
 | Usuario | Perfil |
 |---|---|
-| `recepcion` | Admisión y recepción |
-| `medica` | Personal médico |
-| `enfermeria` | Enfermería |
-| `laboratorio` | Laboratorio clínico |
+| `recepcion` | Admision y recepcion |
+| `medica` | Personal medico |
+| `enfermeria` | Enfermeria |
+| `laboratorio` | Laboratorio clinico |
 | `farmacia` | Farmacia |
-| `caja` | Caja y facturación |
-| `direccion` | Dirección |
-| `admin` | Administración del sistema |
+| `caja` | Caja y facturacion |
+| `direccion` | Direccion |
+| `admin` | Administracion del sistema |
 
-## Validación
+## Comandos disponibles
+
+Desde `frontend/`:
 
 ```bash
+npm run dev
 npm run lint
 npm run build
+npm run preview
 npm run test:e2e
 ```
 
-Los E2E usan un contrato API simulado y cubren landing, autenticación, alta de cuentas, auditoría, revisión de duplicados, protección de rutas, permisos, navegación por módulos y viewport móvil. `e2e/live.spec.ts` permite repetir el recorrido contra Spring Boot y PostgreSQL con `SIIH_LIVE=1`.
+Uso de cada comando:
+
+- `npm run dev`: levanta el servidor de desarrollo.
+- `npm run lint`: ejecuta oxlint.
+- `npm run build`: compila TypeScript y genera `dist/`.
+- `npm run preview`: sirve la version compilada.
+- `npm run test:e2e`: ejecuta pruebas E2E con Playwright.
+
+Si Playwright indica que falta instalar navegadores:
+
+```bash
+npx playwright install
+```
+
+Para ejecutar E2E contra Spring Boot y PostgreSQL reales:
+
+Windows PowerShell:
+
+```powershell
+$env:SIIH_LIVE="1"
+npm run test:e2e
+```
+
+Linux/macOS:
+
+```bash
+SIIH_LIVE=1 npm run test:e2e
+```
+
+## Problemas comunes
+
+### `node` o `npm` no se reconoce
+
+Instala Node.js LTS, cierra la terminal y abre una nueva. Verifica otra vez:
+
+```bash
+node --version
+npm --version
+```
+
+### El navegador muestra error de conexion con el backend
+
+Revisa que:
+
+- PostgreSQL este activo.
+- El backend este corriendo.
+- `VITE_API_URL` termine en `/api/v1`.
+- El puerto configurado en `VITE_API_URL` coincida con el puerto del backend.
+
+### El puerto `5173` esta ocupado
+
+Ejecuta Vite en otro puerto:
+
+```bash
+npm run dev -- --port 5174
+```
+
+Si usas un puerto no permitido por CORS, agrega ese origen en la configuracion del backend.
+
+### `npm install` falla
+
+Verifica tu version de Node.js:
+
+```bash
+node --version
+```
+
+Luego intenta de nuevo:
+
+```bash
+npm install
+```
+
+## Resumen rapido
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Abrir:
+
+```text
+http://localhost:5173
+```
